@@ -121,7 +121,7 @@ const CONFIG = {
 const W = 144, CX = 72;
 const K = '#2b1d2e';
 const cvs = document.getElementById('game');
-const ctx = cvs.getContext('2d');
+let ctx = cvs.getContext('2d');
 const $ = id => document.getElementById(id);
 const titleEl = $('title'), subEl = $('sub'), lightBtn = $('lightBtn'), reopenBtn = $('reopen');
 const meterWrap = $('meterWrap'), meterBar = document.querySelector('#meter i'), meterMark = document.querySelector('#meter b');
@@ -161,9 +161,10 @@ function layout() {
   const r = cvs.getBoundingClientRect();
   if (!r.width || !r.height) return;
   H = Math.max(230, Math.round(W * r.height / r.width));
-  cvs.width = W; cvs.height = H; cor.width = W; cor.height = H;
+  cvs.width = W; cvs.height = H;
   ctx.imageSmoothingEnabled = false;
-  corImg = cctx.createImageData(W, H);
+  buildCorridor();
+  roomDirty = true;
   floorY = Math.round(H * 0.40);
   tableY = Math.round(H * 0.60);
   plateY = tableY + Math.round((H - tableY) * 0.42);
@@ -548,66 +549,77 @@ function ellipse(g, cx, cy, rx, ry, color) {
 const CORRIDOR_TIME = 6.5, F = 46, ZEND = 14;
 const TORCHES = Array.from({ length: 6 }, (_, k) => ({ a: 1.8 + k * 2.1, s: k % 2 ? 1 : -1, ph: rnd(0, 6) }));
 function hash(a, b) { const v = Math.sin(a * 127.1 + b * 311.7) * 43758.5; return v - Math.floor(v); }
+// 성능: 복도는 절반 해상도로 그리고, 픽셀마다 변하지 않는 원근 정보는 미리 계산
+const CR = 2;
+let cw = 0, chh = 0, geoZ, geoT, geoX, geoY, geoDX, geoDY;
+function buildCorridor() {
+  cw = Math.ceil(W / CR); chh = Math.ceil(H / CR) + 2;
+  cor.width = cw; cor.height = chh;
+  corImg = cctx.createImageData(cw, chh);
+  const n = cw * chh, VY = H * 0.45;
+  geoZ = new Float32Array(n); geoT = new Uint8Array(n); geoX = new Float32Array(n); geoY = new Float32Array(n);
+  geoDX = new Float32Array(n); geoDY = new Float32Array(n);
+  for (let y = 0; y < chh; y++) for (let x = 0; x < cw; x++) {
+    const i = y * cw + x, dx = (x + 0.5) * CR - CX, dy = (y + 0.5) * CR - VY - CR;
+    const zw = F / Math.max(0.001, Math.abs(dx));
+    const zf = dy > 0 ? F * 0.8 / dy : dy < 0 ? F / -dy : 1e9;
+    geoDX[i] = dx; geoDY[i] = dy;
+    if (zw < zf) { geoZ[i] = zw; geoT[i] = 0; geoX[i] = Math.sign(dx); geoY[i] = dy * zw / F; }      // 벽
+    else if (dy > 0) { geoZ[i] = zf; geoT[i] = 1; geoX[i] = dx * zf / F; geoY[i] = 0.8; }           // 바닥
+    else { geoZ[i] = zf; geoT[i] = 2; geoX[i] = dx * zf / F; geoY[i] = -1; }                          // 천장
+  }
+}
 function drawCorridor() {
   const p = clamp(pt / CORRIDOR_TIME, 0, 1);
   const e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
   const off = e * (ZEND - 2.6);
-  const bob = Math.sin(p * Math.PI * 10) * 0.6;   // 잔잔한 발걸음
+  const bob = Math.round(Math.sin(p * Math.PI * 10) * 0.8);   // 잔잔한 발걸음
   const VY = Math.round(H * 0.45);
   const zE = ZEND - off;
   const doorGlow = 0.35 + 0.65 * p;
-  const tl = TORCHES.map(tc => ({ z: tc.a - off, x: tc.s * 0.92, y: -0.25, f: 0.92 + 0.08 * Math.sin(t * 5 + tc.ph) }));
-  const d = corImg.data;
-  for (let y = 0; y < H; y++) {
-    const dy = y + 0.5 - VY - bob;
-    for (let x = 0; x < W; x++) {
-      const dx = x + 0.5 - CX;
-      const zw = F / Math.max(0.001, Math.abs(dx));
-      const zf = dy > 0 ? F * 0.8 / dy : dy < 0 ? F / -dy : 1e9;
-      let z = Math.min(zw, zf), r, g, b, X, Y;
-      if (z > zE) {                                   // 복도 끝 (문)
-        z = zE; X = dx * z / F; Y = dy * z / F;
-        if (Math.abs(X) < 0.42 && Y > -0.75 && Y < 0.8) {
-          const k = doorGlow * (Math.abs(X) > 0.38 || Y < -0.7 ? 0.5 : 1);
-          r = 255 * k; g = 196 * k; b = 120 * k;
-          const i4 = (y * W + x) * 4; d[i4] = r; d[i4 + 1] = g; d[i4 + 2] = b; d[i4 + 3] = 255; continue;
-        }
-        r = 70; g = 60; b = 84;
-      } else if (zw < zf) {                           // 벽 (돌벽돌)
-        X = Math.sign(dx); Y = dy * z / F;
-        const A = z + off, row = Math.floor((Y + 1) * 4.5), u = A * 1.6 + (row % 2) * 0.5;
-        const mortar = (u - Math.floor(u)) < 0.07 || ((Y + 1) * 4.5 - row) < 0.1;
-        const v = hash(Math.floor(u), row) * 14;
-        if (mortar) { r = 34; g = 29; b = 42; } else { r = 76 + v; g = 66 + v; b = 90 + v; }
-      } else if (dy > 0) {                            // 바닥
-        X = dx * z / F; Y = 0.8;
-        const A = z + off, ax = Math.abs(X);
-        if (ax < 0.36) { const st = Math.floor(A * 3) % 2; r = 78 + st * 6; g = 16; b = 30; }
+  const tl = TORCHES.map(tc => ({ z: tc.a - off, x: tc.s * 0.92, y: -0.25, f: 0.92 + 0.08 * Math.sin(t * 5 + tc.ph) })).filter(tc => tc.z > -1 && tc.z < zE + 1);
+  const d = corImg.data, n = cw * chh;
+  for (let i = 0; i < n; i++) {
+    let z = geoZ[i], X = geoX[i], Y = geoY[i], r, g, b;
+    const i4 = i * 4;
+    if (z > zE) {                                   // 복도 끝 (문)
+      z = zE; X = geoDX[i] * z / F; Y = geoDY[i] * z / F;
+      if (X > -0.42 && X < 0.42 && Y > -0.75 && Y < 0.8) {
+        const k = doorGlow * (X < -0.38 || X > 0.38 || Y < -0.7 ? 0.5 : 1);
+        d[i4] = 255 * k; d[i4 + 1] = 196 * k; d[i4 + 2] = 120 * k; d[i4 + 3] = 255; continue;
+      }
+      r = 70; g = 60; b = 84;
+    } else {
+      const A = z + off, T = geoT[i];
+      if (T === 0) {                                // 돌벽돌
+        const yy = (Y + 1) * 4.5, row = Math.floor(yy), u = A * 1.6 + (row & 1) * 0.5, fu = u - Math.floor(u);
+        if (fu < 0.08 || yy - row < 0.12) { r = 34; g = 29; b = 42; }
+        else { const v = hash(Math.floor(u), row) * 14; r = 76 + v; g = 66 + v; b = 90 + v; }
+      } else if (T === 1) {                         // 바닥 + 카펫
+        const ax = X < 0 ? -X : X;
+        if (ax < 0.36) { const st = Math.floor(A * 3) & 1; r = 78 + st * 6; g = 16; b = 30; }
         else if (ax < 0.4) { r = 150; g = 112; b = 44; }
         else { const ch = (Math.floor(A * 1.5) + Math.floor(X * 3)) & 1; r = ch ? 58 : 48; g = ch ? 50 : 42; b = ch ? 66 : 56; }
-      } else {                                        // 천장 (나무 들보)
-        X = dx * z / F; Y = -1;
-        const A = z + off;
+      } else {                                      // 천장
         if ((A * 0.8 - Math.floor(A * 0.8)) < 0.14) { r = 58; g = 40; b = 34; } else { r = 30; g = 26; b = 38; }
       }
-      // 조명: 횃불 + 문빛 + 안개
-      let L = 0.2, Lw = 0;
-      for (const tc of tl) {
-        if (tc.z < -1) continue;
-        const dd = (X - tc.x) ** 2 + (Y - tc.y) ** 2 + (z - tc.z) ** 2;
-        Lw += tc.f * 0.8 / (1 + dd * 2.2);
-      }
-      const Ld = 0.55 * doorGlow / (1 + (zE - z) * (zE - z) * 0.06);
-      const fog = 1 / (1 + z * 0.06) * (1 - 0.3 * Math.min(1, (dx * dx) / 5184 + (dy > 0 ? (dy * dy) / 40000 : 0)));   // 안개 + 비네트
-      const i4 = (y * W + x) * 4;
-      d[i4]     = Math.min(255, r * (L + Lw * 1.3 + Ld * 1.2) * 2.1 * fog);
-      d[i4 + 1] = Math.min(255, g * (L + Lw * 0.95 + Ld) * 2.1 * fog);
-      d[i4 + 2] = Math.min(255, b * (L + Lw * 0.55 + Ld * 0.7) * 2.1 * fog);
-      d[i4 + 3] = 255;
     }
+    let Lw = 0;
+    for (let k = 0; k < tl.length; k++) {
+      const tc = tl[k], ex = X - tc.x, ey = Y - tc.y, ez = z - tc.z;
+      Lw += tc.f * 0.8 / (1 + (ex * ex + ey * ey + ez * ez) * 2.2);
+    }
+    const dz = zE - z, Ld = 0.55 * doorGlow / (1 + dz * dz * 0.06);
+    const fog = 2.1 / (1 + z * 0.06);
+    d[i4]     = r * (0.2 + Lw * 1.3 + Ld * 1.2) * fog;
+    d[i4 + 1] = g * (0.2 + Lw * 0.95 + Ld) * fog;
+    d[i4 + 2] = b * (0.2 + Lw * 0.55 + Ld * 0.7) * fog;
+    d[i4 + 3] = 255;
   }
   cctx.putImageData(corImg, 0, 0);
-  ctx.drawImage(cor, 0, 0);
+  rect(0, 0, W, H, '#0d0a14');
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(cor, 0, bob - CR, cw * CR, chh * CR);
   // 횃불 (가까울수록 크게)
   tl.slice().sort((a, b) => b.z - a.z).forEach(tc => {
     if (tc.z < 0.35) return;
@@ -647,7 +659,7 @@ function drawRoom() {
     else if (arch(x, y, wx, wy, ww, wh, 3)) rect(x, y, 1, 1, '#2a1a1c');
   }
   [[wx + 5, wy + 16], [wx + 30, wy + 30], [wx + 14, wy + 40], [wx + 34, wy + 12], [wx + 8, wy + 50]].forEach(([x, y], i) => {
-    if (Math.sin(t * 2 + i * 1.7) > -0.3) rect(x, y, 1, 1, '#dfe6ff');
+    rect(x, y, 1, 1, '#dfe6ff');
   });
   // 창턱
   rect(wx - 5, wy + wh + 1, ww + 10, 3, '#6a4436'); rect(wx - 5, wy + wh + 1, ww + 10, 1, '#b8892e');
@@ -695,7 +707,6 @@ function drawTable(oy) {
   fillPoly(ctx, [[CX - 20, y], [CX + 20, y], [CX + 42, H], [CX - 42, H]], '#d8cdb8');
   for (let k = 0; k < 12; k++) { const yy = y + 3 + k * 6; if (yy >= H) break; const hw = 20 + (yy - y) * 22 / (H - y); rect(Math.round(CX - hw), yy, 1, 1, '#d9ccb4'); rect(Math.round(CX + hw), yy, 1, 1, '#d9ccb4'); }
   drawLilies(22, y + 16);
-  drawCdPlayer(121, y + 18);
 }
 
 // 참나리 (주황 꽃잎이 뒤로 말리고 까만 점이 박힌 꽃)
@@ -825,6 +836,8 @@ function drawCheesecake(oy) {
   const berry = (x, y) => BERRY.forEach((row, r) => { for (let c = 0; c < 5; c++) if (row[c] !== '.') rect(x + c, y - 5 + r, 1, 1, BP[row[c]]); });
   berry(CX - 8, b - hgt + 1); berry(CX + 2, b - hgt - 1);
   rect(tx - 4, ty - 7, 3, 2, '#3a9a6e'); rect(tx - 3, ty - 8, 2, 1, '#5cc28a');
+}
+function drawCandle(oy) {
   // 초 (1개, 크게) — 위에서 내려와 꽂힘
   if (candleIn <= 0) return;
   candles.forEach(c => {
@@ -974,14 +987,28 @@ function drawLighting() {
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
 }
 
+const roomBg = document.createElement('canvas'), roomFg = document.createElement('canvas');
+let roomDirty = true;
+function buildRoomCache() {
+  const main = ctx;
+  [roomBg, roomFg].forEach(c => { c.width = W; c.height = H; });
+  ctx = roomBg.getContext('2d'); ctx.imageSmoothingEnabled = false; drawRoom();
+  ctx = roomFg.getContext('2d'); ctx.imageSmoothingEnabled = false; drawTable(0); drawPlate(0); drawCheesecake(0);
+  ctx = main;
+  roomDirty = false;
+}
+
 function render() {
   if (phase === 'corridor') {
     drawCorridor();
   } else {
-    drawRoom();
+    // 성능: 변하지 않는 배경/테이블은 한 번만 그려두고 재사용
+    if (roomDirty) buildRoomCache();
+    ctx.drawImage(roomBg, 0, 0);
     drawBoy();
-    drawTable(0);
-    drawPlate(0); drawCheesecake(0);
+    ctx.drawImage(roomFg, 0, 0);
+    drawCdPlayer(121, tableY + 18);
+    drawCandle(0);
     drawHands(0);
     drawLighting();
     drawFlames(0);

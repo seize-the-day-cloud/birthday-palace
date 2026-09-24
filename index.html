@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#140f2b">
+<!-- 전체 화면 (홈 화면에 추가하면 앱처럼 주소창 없이 열림) -->
+<link rel="manifest" href="manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="생일 궁전">
+<link rel="apple-touch-icon" href="icon-180.png">
 <title>Happy Birthday</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri/dist/galmuri.css">
 <style>
@@ -159,6 +166,7 @@
   <div id="notes"></div>
   <div class="words big">♪ Happy Birthday ♪</div>
   <div class="words tap">화면을 터치해 주세요</div>
+  <div class="words" id="a2hs" style="position:absolute;bottom:calc(env(safe-area-inset-bottom) + 24px);left:16px;right:16px;font-size:11px;opacity:.55;line-height:1.6;display:none">📱 공유 버튼 → “홈 화면에 추가” 후 열면<br>주소창 없이 꽉 찬 화면으로 볼 수 있어요</div>
 </div>
 
 <script>
@@ -248,7 +256,7 @@ const LEGS = {
 
 /* ================== 상태 ================== */
 const cvs = document.getElementById('game');
-const ctx = cvs.getContext('2d');
+let ctx = cvs.getContext('2d');
 const fadeEl = document.getElementById('fade');
 const bubbleEl = document.getElementById('bubble');
 const bunny = { x: 112, y: 200, face: -1, hop: 0, timer: 1.2, near: false };
@@ -455,12 +463,12 @@ function tower(x0) {
     rect(cx - hw - 1, y, 1, 1, K); rect(cx + hw, y, 1, 1, K);
   }
   rect(cx - 15, 35, 30, 2, C.gold);
-  // 깃발
   rect(cx, 2, 1, 10, K);
-  const f = Math.floor(t * 4 + x0) % 2;
-  const widths = f ? [4, 5, 3] : [5, 4, 2];
-  widths.forEach((w, i) => rect(cx + 1, 3 + i, w, 1, '#ff7aa2'));
   archWindow(x0 + 9, 54, 6, 14);
+}
+function flag(x0) {
+  const cx = x0 + 12, f = Math.floor(t * 4 + x0) % 2;
+  (f ? [4, 5, 3] : [5, 4, 2]).forEach((w, i) => rect(cx + 1, 3 + i, w, 1, '#ff7aa2'));
 }
 
 function pillar(x0) {
@@ -538,10 +546,22 @@ function drawPalace() {
   tower(6); tower(114);
   archWindow(35, 58, 10, 20); archWindow(99, 58, 10, 20);
   pillar(49); pillar(89);
-  drawDoor();
-  torch(51); torch(91);
   bunting();
   rect(30, WALL - 1, 84, 1, '#c9b293');
+}
+// 성능: 궁전의 변하지 않는 부분은 한 번만 그려서 재사용
+const palaceCv = document.createElement('canvas');
+let palaceReady = false;
+function drawPalaceCached() {
+  if (!palaceReady) {
+    palaceCv.width = W; palaceCv.height = WALL + 2;
+    const main = ctx; ctx = palaceCv.getContext('2d');
+    drawPalace(); ctx = main; palaceReady = true;
+  }
+  ctx.drawImage(palaceCv, 0, 0);
+  flag(6); flag(114);
+  drawDoor();
+  torch(51); torch(91);
 }
 
 function drawGround() {
@@ -747,7 +767,7 @@ function drawPlayer() {
 function render() {
   ctx.setTransform(1, 0, 0, 1, 0, OY);
   drawSky();
-  drawPalace();
+  drawPalaceCached();
   drawGround();
 
   const list = decor.map(d => ({ y: d.y, draw: () => (d.type === 'lamp' ? drawLamp(d) : drawBush(d)) }));
@@ -763,7 +783,7 @@ function openNextScene() {
   if (!CONFIG.nextPage) return;
   const f = document.createElement('iframe');
   f.src = CONFIG.nextPage;
-  f.allow = 'microphone; autoplay';
+  f.allow = 'microphone; autoplay; fullscreen';
   f.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#0d0a14;';
   document.body.appendChild(f);
   walkman.style.display = 'none';
@@ -841,9 +861,21 @@ function playSong() {
 const introEl = document.getElementById('intro');
 const notesEl = document.getElementById('notes');
 let introStarted = false;
+// 꽉 찬 화면: 안드로이드/PC는 전체화면 API, 아이폰은 '홈 화면에 추가'로 실행
+function goFullscreen() {
+  const el = document.documentElement;
+  const fn = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (fn && !document.fullscreenElement) { try { const r = fn.call(el, { navigationUI: 'hide' }); if (r && r.catch) r.catch(() => {}); } catch (e) {} }
+}
+(() => {
+  const ios = /iPhone|iPod/.test(navigator.userAgent);
+  const standalone = navigator.standalone || matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches;
+  if (ios && !standalone) document.getElementById('a2hs').style.display = 'block';
+})();
 function startIntro() {
   if (introStarted) return;
   introStarted = true;
+  goFullscreen();
   ensureAudio();
   const len = actx ? playSong() : 6;
   introEl.classList.add('playing');
