@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#140f2b">
+<title>Happy Birthday</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri/dist/galmuri.css">
+<style>
+  :root{
+    --panel:#f4e7d4; --panel-dark:#dcc6a6; --ink:#2b1d2e; --accent:#e8485f; --lcd:#2a1d33; --lcd-text:#ffe9b8;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;background:#140f2b;overflow:hidden;overscroll-behavior:none;}
+  body{
+    position:fixed;inset:0;
+    font-family:'Galmuri11','Galmuri9',monospace;
+    color:var(--ink);
+    user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+    touch-action:none;
+  }
+  #app{display:flex;flex-direction:column;height:100%;max-width:520px;margin:0 auto;position:relative;}
+  #screen{flex:1;min-height:0;position:relative;overflow:hidden;background:#140f2b;}
+  #game{
+    display:block;width:100%;height:100%;
+    image-rendering:crisp-edges;image-rendering:pixelated;
+  }
+  #title{
+    position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top) + 16px);
+    text-align:center;font-size:16px;color:#fff3dc;letter-spacing:1px;
+    text-shadow:2px 0 0 var(--ink),-2px 0 0 var(--ink),0 2px 0 var(--ink),0 -2px 0 var(--ink),2px 2px 0 var(--ink),-2px -2px 0 var(--ink),2px -2px 0 var(--ink),-2px 2px 0 var(--ink);
+    pointer-events:none;
+  }
+  #bubble{
+    position:absolute;left:0;top:0;z-index:1;
+    padding:6px 10px;font-size:14px;white-space:nowrap;color:var(--ink);
+    background:#fff;border:3px solid var(--ink);
+    box-shadow:3px 3px 0 rgba(43,29,46,.45);
+    transform:translate(-50%,-100%) scale(0);transform-origin:50% 100%;
+    transition:transform .18s steps(4);pointer-events:none;
+  }
+  #bubble::after{
+    content:"";position:absolute;left:50%;bottom:-9px;margin-left:-6px;
+    width:12px;height:9px;background:var(--ink);
+    clip-path:polygon(0 0,100% 0,50% 100%);
+  }
+  #bubble.show{transform:translate(-50%,-100%) scale(1);}
+  #joyzone{ /* 왼쪽 아래 조작 영역 (엄지가 조금 빗나가도 OK) */
+    position:absolute;left:0;bottom:0;width:60%;height:42%;z-index:2;
+  }
+  #stick{
+    position:absolute;left:22px;bottom:calc(22px + env(safe-area-inset-bottom));
+    width:112px;height:112px;border-radius:50%;
+    background:rgba(43,29,46,.55);
+    border:4px solid rgba(43,29,46,.85);
+    box-shadow:inset 0 0 0 8px rgba(255,255,255,.08);
+    pointer-events:none;
+  }
+  #stick::before,#stick::after{
+    content:"";position:absolute;left:50%;top:50%;background:rgba(255,255,255,.14);
+  }
+  #stick::before{width:6px;height:66%;transform:translate(-50%,-50%);}
+  #stick::after{width:66%;height:6px;transform:translate(-50%,-50%);}
+  #knob{
+    position:absolute;left:50%;top:50%;
+    width:50px;height:50px;margin:-25px 0 0 -25px;border-radius:50%;
+    background:var(--accent);border:4px solid var(--ink);
+    box-shadow:inset -5px -6px 0 rgba(0,0,0,.22), inset 5px 5px 0 rgba(255,255,255,.35);
+    z-index:1;transition:transform .15s ease-out;
+  }
+  #stick.on #knob{transition:none;}
+  /* ---- 음악 선택 창 ---- */
+  #music{
+    position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;
+    background:rgba(10,6,20,.6);padding:16px;
+  }
+  #music.hidden{display:none;}
+  #music .win{
+    width:100%;max-width:340px;background:#f4e7d4;border:4px solid var(--ink);
+    box-shadow:6px 6px 0 rgba(0,0,0,.35);padding:14px 14px 16px;
+    animation:pop .22s steps(4);
+  }
+  @keyframes pop{from{transform:scale(.6);}to{transform:scale(1);}}
+  #music .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-size:16px;}
+  #music .x{font:inherit;font-size:14px;background:var(--ink);color:#fff;border:0;width:30px;height:30px;cursor:pointer;}
+  .tape{
+    display:flex;align-items:center;gap:10px;width:100%;margin-top:10px;padding:10px;
+    font:inherit;text-align:left;color:var(--ink);cursor:pointer;
+    background:var(--c);border:3px solid var(--ink);box-shadow:0 4px 0 rgba(43,29,46,.35);
+  }
+  .tape:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(43,29,46,.35);}
+  .tape .reels{flex:0 0 auto;display:flex;gap:6px;padding:6px 7px;background:#3a2a44;border:2px solid var(--ink);}
+  .tape .reels i{width:14px;height:14px;border-radius:50%;background:#fff;border:3px solid #8a7a96;display:block;}
+  .tape .label{flex:1;min-width:0;background:#fffaf2;border:2px solid var(--ink);padding:5px 8px;}
+  .tape b{display:block;font-size:13px;font-weight:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .tape small{display:block;font-size:11px;opacity:.7;}
+  .tape.on .reels i{animation:spin 1s linear infinite;border-style:dashed;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  #music .msg{margin-top:12px;font-size:11px;text-align:center;opacity:.7;min-height:14px;}
+
+  /* ---- 워크맨 미니 플레이어 ---- */
+  #walkman{
+    position:fixed;z-index:5;right:12px;top:calc(env(safe-area-inset-top) + 58px);
+    width:170px;background:#f4e7d4;border:3px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.35);
+    padding:6px;font-size:11px;color:var(--ink);
+  }
+  #walkman.off{left:-9999px;right:auto;}          /* 곡을 고르기 전에는 화면 밖에서 대기 */
+  #walkman .deck{display:flex;align-items:center;gap:8px;padding:6px;background:#3a2a44;border:2px solid var(--ink);}
+  #walkman .deck i{width:16px;height:16px;border-radius:50%;background:#fff;border:3px dashed #8a7a96;display:block;}
+  #walkman.playing .deck i{animation:spin 1.2s linear infinite;}
+  #walkman .deck .win{flex:1;height:8px;background:#1d1a24;border:1px solid #8a7a96;}
+  #walkman .now{margin:5px 2px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #walkman .btns{display:flex;gap:6px;}
+  #walkman button{flex:1;white-space:nowrap;font:inherit;font-size:11px;padding:5px 0;background:#fff;border:2px solid var(--ink);color:var(--ink);cursor:pointer;}
+  #intro{
+    position:fixed;inset:0;z-index:10;background:#07050e;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
+    color:#fff3dc;text-align:center;cursor:pointer;
+  }
+  #intro .big{font-size:20px;color:#ff9ab8;letter-spacing:1px;}
+  #intro .tap{font-size:14px;animation:blink 1.1s steps(2) infinite;}
+  #intro .words{transition:opacity .6s ease;}
+  #intro.playing{cursor:default;}
+  #intro.playing .words{opacity:0;}
+  #intro.gone{opacity:0;pointer-events:none;}
+  #notes{position:absolute;inset:0;overflow:hidden;pointer-events:none;}
+  #notes span{position:absolute;bottom:-30px;font-size:22px;color:#ffd166;animation:rise 4s linear forwards;}
+  @keyframes blink{50%{opacity:0;}}
+  @keyframes rise{to{transform:translateY(-110vh);opacity:0;}}
+  #fade{
+    position:fixed;inset:0;background:#0d0a14;opacity:0;pointer-events:none;
+    transition:opacity 1s ease;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="screen">
+    <canvas id="game"></canvas>
+    <div id="title">레드카펫을 따라 들어오세요</div>
+    <div id="bubble">생일추카해</div>
+    <div id="joyzone"><div id="stick"><div id="knob"></div></div></div>
+  </div>
+</div>
+<div id="fade"></div>
+<div id="music" class="hidden">
+  <div class="win">
+    <div class="head"><span>♪ 음악을 골라줘</span><button class="x" id="mclose" aria-label="닫기">✕</button></div>
+    <div id="tapes"></div>
+    <div class="msg" id="mmsg"></div>
+  </div>
+</div>
+<div id="walkman" class="off">
+  <div class="deck"><i></i><span class="win"></span><i></i></div>
+  <div class="now" id="wnow">♪</div>
+  <div class="btns"><button id="wplay">⏸ 멈춤</button><button id="wchange">🔁 바꾸기</button></div>
+</div>
+<div id="intro">
+  <div id="notes"></div>
+  <div class="words big">♪ Happy Birthday ♪</div>
+  <div class="words tap">화면을 터치해 주세요</div>
+</div>
+
+<script>
+(() => {
+/* ================== 설정 ================== */
+const CONFIG = {
+  nextPage: 'cake.html',   // 문에 들어가면 이동할 페이지 (케이크 페이지)
+  speed: 30,               // 캐릭터 이동 속도 (게임 픽셀/초)
+  sfx: true,               // 문 열림·입장 효과음
+};
+
+/* ================== 기본 ================== */
+const W = 144;            // 게임 해상도 가로 (세로는 화면 비율로 계산)
+const WALL = 108;         // 궁전 벽 아래선 = 바닥 시작
+const CX = 72;            // 화면 중앙 / 레드카펫 중앙
+const DOOR = { x: 58, y: 66, w: 28, h: 42 };
+
+const K = '#2b1d2e';
+const C = {
+  stone:'#efe1cc', stoneShade:'#d8c3a5', stoneLine:'#d6c0a0', towerLine:'#c4ab88',
+  roof:'#e2587c', roofDark:'#a93a5e', gold:'#f5c542',
+  door:'#8a3a2c', doorDark:'#5e2219',
+  carpet:'#d42a45', carpetDark:'#951a30', carpetGold:'#e8b64a',
+  floor1:'#4a3d5e', floor2:'#433757', window:'#ffd66b', windowHi:'#fff1b0',
+};
+const PAL = { K, H:'#1d1a24', h:'#3d3848', S:'#ffdcc6', C:'#ffa3b1', B:'#f1e8d8', W:'#ffffff', G:'#55525e', P:'#2f2b3a', F:'#1a1620' };
+
+/* ================== 도트 캐릭터 (12x16, 검은 긴 웨이브 머리) ================== */
+const TOP = {
+  down: [
+    "...KKKKKK...",
+    "..KHHHHHHK..",
+    ".KHHHhhHHHK.",
+    ".KHHSSHHHHK.",
+    ".KHSSSSSHHK.",
+    ".KHSKSSKSHK.",
+    ".KHCSSSSCHK.",
+    ".KHHSSSSHHK.",
+    ".KHHKWWKHHK.",
+    ".KHBWGGWBHK.",
+    "KHHSBWWBSHHK",
+    ".KHKBBBBKHK.",
+    "..KPPPPPPK..",
+  ],
+  up: [
+    "...KKKKKK...",
+    "..KHHHHHHK..",
+    ".KHHHHHHHHK.",
+    ".KHHhHHHHHK.",
+    ".KHHHHHhHHK.",
+    ".KHHHHHHHHK.",
+    ".KHHHhHHHHK.",
+    ".KHHHHHHhHK.",
+    ".KHHHHHHHHK.",
+    ".KBHHHHHHBK.",
+    "KHSHHHHHHSHK",
+    ".KKHHKKHHKK.",
+    "..KPPPPPPK..",
+  ],
+  side: [
+    "...KKKKK....",
+    "..KHHHHHK...",
+    ".KHHhHHHHK..",
+    ".KHHHHHSHK..",
+    ".KHHHHSSSK..",
+    ".KHHHSSKSK..",
+    ".KHHHSSCSK..",
+    ".KHHHKSSK...",
+    ".KHHhKWWK...",
+    ".KHHHBWGBK..",
+    "KHHHKBBSK...",
+    ".KKHKBBBK...",
+    "..KPPPPPK...",
+  ],
+};
+const LEGS = {
+  front: {
+    stand: ["...KSKKSK...", "...KFKKFK...", "...KKKKKK..."],
+    w1:    ["...KSKKSK...", "...KKKKFK...", "......KKK..."],
+    w2:    ["...KSKKSK...", "...KFKKKK...", "...KKK......"],
+  },
+  side: {
+    stand: ["...KSSK.....", "...KFFFK....", "...KKKKK...."],
+    w1:    ["..KSKKSK....", ".KFK..KFK...", ".KK....KK..."],
+  },
+};
+
+/* ================== 상태 ================== */
+const cvs = document.getElementById('game');
+const ctx = cvs.getContext('2d');
+const fadeEl = document.getElementById('fade');
+const bubbleEl = document.getElementById('bubble');
+const bunny = { x: 112, y: 200, face: -1, hop: 0, timer: 1.2, near: false };
+const BUNNY_NEAR = 20;   // 이 거리(게임 픽셀) 안으로 오면 말풍선
+
+const OY = 26;            // 상단 문구 자리 (게임 픽셀)
+let H = 240, t = 0, door = 0, doorTarget = 0, state = 'play';
+const player = { x: CX, y: 220, dir: 'up', anim: 0, moving: false, alpha: 1 };
+const input = { x: 0, y: 0 };
+const keys = {};
+let stars = [], petals = [], sparkles = [], decor = [];
+let joyId = null;
+
+const rnd = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+function rect(x, y, w, h, c) { if (c) ctx.fillStyle = c; ctx.fillRect(x, y, w, h); }
+function circle(cx, cy, r, c) {
+  ctx.fillStyle = c;
+  for (let dy = -r; dy <= r; dy++) {
+    const hw = Math.floor(Math.sqrt(r * r - dy * dy) + 0.5);
+    ctx.fillRect(cx - hw, cy + dy, hw * 2 + 1, 1);
+  }
+}
+function drawMap(map, x, y, color) {
+  ctx.fillStyle = color;
+  map.forEach((row, r) => { for (let c = 0; c < row.length; c++) if (row[c] === 'X') ctx.fillRect(x + c, y + r, 1, 1); });
+}
+// 아치(문·창문) 판정
+function arch(x, y, x0, y0, w, h, pad) {
+  const px = x + 0.5, py = y + 0.5;
+  if (px < x0 - pad || px > x0 + w + pad || py < y0 - pad || py > y0 + h) return false;
+  const r = w / 2 + pad, cx = x0 + w / 2, cy = y0 + w / 2;
+  if (py >= cy) return true;
+  const dx = px - cx, dy = py - cy;
+  return dx * dx + dy * dy <= r * r;
+}
+function hex(c) { const n = parseInt(c.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; }
+function mix(a, b, k) { const A = hex(a), B = hex(b); return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * k)).join(',')})`; }
+const DOOR_LIGHT = Array.from({ length: DOOR.h + 1 }, (_, i) => mix('#fff7da', '#ffc76b', i / DOOR.h));
+
+/* ================== 레이아웃 ================== */
+function resize() {
+  const r = cvs.getBoundingClientRect();
+  if (!r.width || !r.height) return;
+  const CH = Math.max(236, Math.round(W * r.height / r.width));
+  H = CH - OY;              // 월드 높이 (문구 자리 제외)
+  cvs.width = W; cvs.height = CH;
+  ctx.imageSmoothingEnabled = false;
+
+  const lampY = Math.min(152, H - 50);
+  decor = [
+    { type: 'lamp', x: 22, y: lampY }, { type: 'lamp', x: 122, y: lampY },
+  ];
+  decor.push({ type: 'bush', x: 14, y: lampY + 38 }, { type: 'bush', x: 130, y: lampY + 38 });
+  bunny.x = 113; bunny.y = lampY + 41;  // 오른쪽 풀숲 옆
+
+  sparkles = Array.from({ length: 9 }, () => ({ x: Math.round(rnd(63, 81)), y: Math.round(rnd(WALL + 8, H - 4)), ph: rnd(0, 6.28) }));
+  if (state === 'play') player.y = clamp(player.y, minY(player.x), H - 2);
+}
+function reset() {
+  state = 'play'; door = 0; doorTarget = 0;
+  Object.assign(player, { x: CX, y: H - 16, dir: 'up', anim: 0, moving: false, alpha: 1 });
+  fadeEl.style.opacity = 0;
+}
+stars = Array.from({ length: 34 }, () => ({ x: Math.floor(rnd(0, W)), y: Math.floor(rnd(-OY, 60)), sp: rnd(1, 3), ph: rnd(0, 6.28), big: Math.random() < 0.2 }));
+petals = Array.from({ length: 12 }, () => ({ x: rnd(0, W), y: rnd(0, 300), vy: rnd(7, 13), ph: rnd(0, 6.28), c: Math.random() < 0.5 ? '#ffb3c7' : '#ffd9e2' }));
+
+/* ================== 이동·충돌 ================== */
+function minY(x) { return (x > 52 && x < 92) ? WALL + 3 : WALL + 7; } // 계단 위는 문 바로 앞까지
+function blocked(x, y) {
+  const fx0 = x - 3, fx1 = x + 3, fy0 = y - 2, fy1 = y;
+  if (fx0 < bunny.x + 5 && fx1 > bunny.x - 5 && fy0 < bunny.y && fy1 > bunny.y - 3) return true;
+  return decor.some(d => {
+    const b = d.type === 'lamp'
+      ? { x0: d.x - 3, x1: d.x + 3, y0: d.y - 3, y1: d.y }
+      : { x0: d.x - 7, x1: d.x + 7, y0: d.y - 7, y1: d.y };
+    return fx0 < b.x1 && fx1 > b.x0 && fy0 < b.y1 && fy1 > b.y0;
+  });
+}
+
+function update(dt) {
+  t += dt;
+
+  let ix = input.x, iy = input.y;
+  if (joyId === null) {
+    ix = (keys.ArrowRight || keys.d ? 1 : 0) - (keys.ArrowLeft || keys.a ? 1 : 0);
+    iy = (keys.ArrowDown || keys.s ? 1 : 0) - (keys.ArrowUp || keys.w ? 1 : 0);
+  }
+  if (musicOpen) { ix = 0; iy = 0; }
+  const len = Math.hypot(ix, iy);
+  if (len > 1) { ix /= len; iy /= len; }
+
+  if (state === 'play') {
+    player.moving = len > 0.18;
+    if (player.moving) {
+      player.dir = Math.abs(ix) > Math.abs(iy) ? (ix > 0 ? 'right' : 'left') : (iy > 0 ? 'down' : 'up');
+      const sp = CONFIG.speed * dt;
+      const nx = clamp(player.x + ix * sp, 6, W - 6);
+      if (!blocked(nx, player.y)) player.x = nx;
+      const ny = clamp(player.y + iy * sp, minY(player.x), H - 2);
+      if (!blocked(player.x, ny)) player.y = ny;
+      player.anim += dt;
+    } else player.anim = 0;
+
+    // 문 근처에 오면 문이 열림
+    const want = Math.hypot(player.x - CX, player.y - (WALL + 4)) < 46 ? 1 : 0;
+    if (want && !doorTarget) chime([523, 659, 784], 0.09);
+    doorTarget = want;
+
+    // 문 앞에서 위로 밀면 입장
+    if (door > 0.8 && Math.abs(player.x - CX) < 9 && player.y <= WALL + 4 && iy < -0.3) {
+      state = 'enter';
+      chime([523, 659, 784, 1047], 0.08);
+    }
+  } else if (state === 'enter') {
+    player.dir = 'up'; player.moving = true; player.anim += dt;
+    player.x += (CX - player.x) * Math.min(1, dt * 6);
+    player.y -= 24 * dt;
+    if (player.y < WALL) player.alpha = clamp((player.y - (WALL - 14)) / 14, 0, 1);
+    if (player.y < WALL - 6) {
+      state = 'done';
+      fadeEl.style.opacity = 1;
+      setTimeout(openNextScene, 1100);
+    }
+  }
+
+  door += (doorTarget - door) * Math.min(1, dt * 3.2);
+
+  updateBunny(dt);
+  updateCassette(dt);
+
+  petals.forEach(p => {
+    p.y += p.vy * dt; p.x += Math.sin(t * 1.4 + p.ph) * 6 * dt;
+    if (p.y > H + 2) { p.y = -OY - 2; p.x = rnd(0, W); }
+    if (p.x < -2) p.x = W + 1; if (p.x > W + 2) p.x = -1;
+  });
+}
+
+function updateBunny(dt) {
+  const d = Math.hypot(player.x - bunny.x, player.y - bunny.y);
+  bunny.near = state === 'play' && d < BUNNY_NEAR;
+  if (bunny.near) bunny.face = player.x < bunny.x ? -1 : 1;
+  bunny.timer -= dt;
+  if (bunny.timer <= 0) {
+    bunny.hop = 0.001;
+    bunny.timer = bunny.near ? 0.45 : rnd(1.2, 2.6);           // 가까우면 신나서 계속 깡총
+    if (!bunny.near && Math.random() < 0.3) bunny.face *= -1;
+  }
+  if (bunny.hop > 0) { bunny.hop += dt; if (bunny.hop > 0.32) bunny.hop = 0; }
+
+  bubbleEl.classList.toggle('show', bunny.near);
+  if (bunny.near) {
+    const r = cvs.getBoundingClientRect(), k = r.width / W;
+    bubbleEl.style.left = (bunny.x * k) + 'px';
+    bubbleEl.style.top = ((bunny.y + OY - 20) * k) + 'px';
+  }
+}
+
+/* ================== 그리기 ================== */
+function drawSky() {
+  const g = ctx.createLinearGradient(0, -OY, 0, WALL);
+  g.addColorStop(0, '#140f2b'); g.addColorStop(1, '#3b2660');
+  ctx.fillStyle = g; ctx.fillRect(0, -OY, W, WALL + OY);
+  stars.forEach(s => {
+    const a = 0.5 + 0.5 * Math.sin(t * s.sp + s.ph);
+    if (a < 0.25) return;
+    ctx.globalAlpha = a;
+    rect(s.x, s.y, 1, 1, '#fff6d6');
+    if (s.big && a > 0.8) { rect(s.x - 1, s.y, 3, 1); rect(s.x, s.y - 1, 1, 3); }
+  });
+  ctx.globalAlpha = 1;
+  circle(104, 9, 5, '#fff1c1');
+  rect(102, 7, 2, 2, '#efdca0'); rect(106, 11, 1, 1, '#efdca0');
+}
+
+function bricks(x0, y0, w, h, c) {
+  for (let r = 0, y = y0; y < y0 + h; y += 6, r++) {
+    rect(x0, y, w, 1, c);
+    for (let x = x0 + (r % 2 ? 6 : 0); x < x0 + w; x += 12) rect(x, y + 1, 1, Math.min(5, y0 + h - y - 1), c);
+  }
+}
+
+function archWindow(x0, y0, w, h) {
+  for (let y = y0 - 2; y <= y0 + h; y++) for (let x = x0 - 2; x <= x0 + w + 1; x++) {
+    if (arch(x, y, x0, y0, w, h, 0)) {
+      let c = y < y0 + 3 ? C.windowHi : C.window;
+      if (x === x0 + Math.floor(w / 2) || y === y0 + Math.floor(h * 0.55)) c = '#9a6a45';
+      rect(x, y, 1, 1, c);
+    } else if (arch(x, y, x0, y0, w, h, 1)) rect(x, y, 1, 1, K);
+  }
+  rect(x0 - 2, y0 + h + 1, w + 4, 2, C.gold);
+}
+
+function tower(x0) {
+  const cx = x0 + 12;
+  rect(x0, 34, 24, WALL - 34, C.stoneShade);
+  bricks(x0, 36, 24, WALL - 36, C.towerLine);
+  rect(x0, 34, 1, WALL - 34, K); rect(x0 + 23, 34, 1, WALL - 34, K);
+  // 뾰족 지붕
+  for (let y = 12; y < 36; y++) {
+    const hw = Math.round((y - 12) / 24 * 15);
+    rect(cx - hw, y, hw * 2, 1, y % 4 === 0 ? C.roofDark : C.roof);
+    rect(cx - hw - 1, y, 1, 1, K); rect(cx + hw, y, 1, 1, K);
+  }
+  rect(cx - 15, 35, 30, 2, C.gold);
+  // 깃발
+  rect(cx, 2, 1, 10, K);
+  const f = Math.floor(t * 4 + x0) % 2;
+  const widths = f ? [4, 5, 3] : [5, 4, 2];
+  widths.forEach((w, i) => rect(cx + 1, 3 + i, w, 1, '#ff7aa2'));
+  archWindow(x0 + 9, 54, 6, 14);
+}
+
+function pillar(x0) {
+  rect(x0, 61, 6, 45, '#fbeedd');
+  rect(x0 + 4, 61, 2, 45, '#dcc8ab');
+  rect(x0 + 2, 63, 1, 41, '#e8d6bc');
+  rect(x0 - 1, 57, 8, 1, K); rect(x0 - 1, 58, 8, 3, C.gold);
+  rect(x0 - 1, 105, 8, 3, C.gold);
+}
+
+function torch(tx) {
+  ctx.globalAlpha = 0.16 + 0.04 * Math.sin(t * 9 + tx);
+  circle(tx + 1, 75, 7, '#ffb347');
+  ctx.globalAlpha = 1;
+  rect(tx - 1, 80, 4, 2, '#5b3b2a');
+  rect(tx - 1, 78, 4, 2, K);
+  const f = Math.floor(t * 8 + tx) % 2;
+  rect(tx, 72 + f, 2, 6 - f, '#ff8a3d');
+  rect(tx, 75, 2, 3, '#ffe066');
+  rect(tx + f, 71 + f, 1, 1, '#ff8a3d');
+}
+
+function drawDoor() {
+  const { x: x0, y: y0, w, h } = DOOR;
+  const lw = Math.round(14 * (1 - door));      // 닫힌 문짝 폭 (열리면 0)
+  for (let y = y0 - 3; y < WALL; y++) for (let x = x0 - 3; x < x0 + w + 3; x++) {
+    if (arch(x, y, x0, y0, w, h, 0)) {
+      const lx = x - x0;
+      let c;
+      if (lx < lw || lx >= w - lw) {
+        const left = lx < lw;
+        const pl = left ? lx : w - 1 - lx;
+        const edge = left ? lx === lw - 1 : lx === w - lw;
+        c = edge || pl % 5 === 4 ? C.doorDark : C.door;
+        if (!edge && pl % 5 === 2 && (y - y0) % 9 === 4) c = C.gold;
+      } else {
+        c = DOOR_LIGHT[y - y0];
+        if (y >= 100 && x >= 66 && x < 78) c = '#ef7a8a'; // 안쪽으로 이어지는 카펫
+      }
+      rect(x, y, 1, 1, c);
+    } else if (arch(x, y, x0, y0, w, h, 2)) rect(x, y, 1, 1, C.gold);
+    else if (arch(x, y, x0, y0, w, h, 3)) rect(x, y, 1, 1, K);
+  }
+  if (door < 0.05) { rect(70, 88, 1, 4, C.gold); rect(73, 88, 1, 4, C.gold); }
+}
+
+function bunting() {
+  const colors = ['#ff7aa2', '#ffd166', '#7ee0c3', '#8ecbff'];
+  const sag = x => 45 + Math.round(3 * Math.sin(Math.PI * (x - 30) / 84));
+  for (let x = 30; x < 114; x++) rect(x, sag(x), 1, 1, '#5b3b4a');
+  for (let i = 0, x = 33; x < 110; x += 8, i++) {
+    const y = sag(x + 2) + 1;
+    ctx.fillStyle = colors[i % 4];
+    ctx.fillRect(x, y, 5, 1); ctx.fillRect(x + 1, y + 1, 3, 1); ctx.fillRect(x + 2, y + 2, 1, 1);
+  }
+}
+
+function drawPalace() {
+  // 본관 벽
+  rect(30, 44, 84, WALL - 44, C.stone);
+  bricks(30, 46, 84, WALL - 46, C.stoneLine);
+  rect(28, 39, 88, 1, K); rect(28, 40, 88, 4, C.roofDark); rect(28, 44, 88, 2, C.gold);
+  // 박공 지붕 + 하트 창
+  for (let y = 16; y < 40; y++) {
+    const hw = Math.round((y - 16) / 24 * 30);
+    rect(CX - hw, y, hw * 2, 1, C.roof);
+    rect(CX - hw - 1, y, 1, 1, K); rect(CX + hw, y, 1, 1, K);
+    const iw = hw - 4;
+    if (y > 21 && iw > 0) { rect(CX - iw, y, 1, 1, C.gold); rect(CX + iw - 1, y, 1, 1, C.gold); }
+  }
+  rect(CX - 31, 38, 62, 2, C.gold);
+  circle(CX, 29, 6, K); circle(CX, 29, 5, C.gold); circle(CX, 29, 4, C.window);
+  rect(CX - 4, 29, 9, 1, '#9a6a45'); rect(CX, 25, 1, 9, '#9a6a45'); // 둥근 창
+
+  tower(6); tower(114);
+  archWindow(35, 58, 10, 20); archWindow(99, 58, 10, 20);
+  pillar(49); pillar(89);
+  drawDoor();
+  torch(51); torch(91);
+  bunting();
+  rect(30, WALL - 1, 84, 1, '#c9b293');
+}
+
+function drawGround() {
+  for (let y = WALL; y < H; y += 12) for (let x = 0; x < W; x += 12) {
+    rect(x, y, 12, 12, ((x / 12 + (y - WALL) / 12) % 2) ? C.floor1 : C.floor2);
+    rect(x, y, 12, 1, '#54466a');
+  }
+  ctx.globalAlpha = 0.3; rect(0, WALL, W, 3, '#000'); ctx.globalAlpha = 1;
+
+  // 계단
+  rect(44, WALL + 4, 56, 5, '#d9c7ad'); rect(44, WALL + 4, 56, 1, '#efe1cc'); rect(44, WALL + 9, 56, 1, K);
+  rect(48, WALL, 48, 4, '#efe1cc'); rect(48, WALL + 3, 48, 1, '#cbb799');
+
+  // 레드카펫
+  const top = WALL, hgt = H - WALL;
+  rect(60, top, 24, hgt, C.carpet);
+  rect(60, top, 1, hgt, C.carpetGold); rect(61, top, 1, hgt, C.carpetDark);
+  rect(82, top, 1, hgt, C.carpetDark); rect(83, top, 1, hgt, C.carpetGold);
+  for (let y = WALL + 14; y < H - 3; y += 16) {
+    rect(71, y, 2, 1, C.carpetGold); rect(70, y + 1, 4, 1); rect(71, y + 2, 2, 1);
+  }
+  rect(62, WALL + 3, 20, 1, C.carpetDark); // 계단 모서리
+  rect(62, WALL + 9, 20, 1, C.carpetDark);
+
+  // 문에서 새어나오는 빛
+  if (door > 0.02) {
+    ctx.globalAlpha = 0.25 * door;
+    for (let y = WALL; y < Math.min(H, WALL + 46); y++) {
+      const hw = 14 + Math.round((y - WALL) * 0.5);
+      rect(CX - hw, y, hw * 2, 1, '#ffe3a0');
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // 카펫 반짝이
+  sparkles.forEach(s => {
+    const a = Math.sin(t * 3 + s.ph);
+    if (a < 0.6) return;
+    ctx.globalAlpha = (a - 0.6) / 0.4;
+    rect(s.x, s.y, 1, 1, '#fff6d6');
+    if (a > 0.9) { rect(s.x - 1, s.y, 3, 1); rect(s.x, s.y - 1, 1, 3); }
+  });
+  ctx.globalAlpha = 1;
+}
+
+function drawLamp({ x, y }) {
+  ctx.globalAlpha = 0.14 + 0.03 * Math.sin(t * 5 + x);
+  circle(x, y - 30, 11, '#ffd66b');
+  ctx.globalAlpha = 1;
+  ctx.globalAlpha = 0.3; rect(x - 4, y - 1, 9, 2, '#000'); ctx.globalAlpha = 1;
+  rect(x - 3, y - 3, 7, 2, K);
+  rect(x - 1, y - 27, 3, 24, '#2f2640'); rect(x, y - 27, 1, 24, '#4b3d62');
+  rect(x - 4, y - 36, 9, 2, K); rect(x, y - 38, 1, 2, K);
+  rect(x - 3, y - 34, 7, 7, K); rect(x - 2, y - 33, 5, 5, '#ffe9a8');
+}
+
+function drawBush({ x, y }) {
+  ctx.globalAlpha = 0.3; rect(x - 7, y - 1, 15, 2, '#000'); ctx.globalAlpha = 1;
+  circle(x - 3, y - 5, 4, '#2f7a5a'); circle(x + 3, y - 5, 4, '#2f7a5a'); circle(x, y - 8, 4, '#3a9a6e');
+  rect(x - 4, y - 7, 1, 1, '#ff9ab8'); rect(x + 2, y - 10, 1, 1, '#ffd166'); rect(x + 4, y - 5, 1, 1, '#ff9ab8'); rect(x - 1, y - 4, 1, 1, '#fff');
+}
+
+/* ================== 카세트 & 음악 ================== */
+const SONGS = [
+  { src: 'music/song1.mp3', title: 'Last Night on Earth', artist: 'Green Day',     color: '#ff9ab8' },
+  { src: 'music/song2.mp3', title: '사랑의 바보',          artist: '더 넛츠',        color: '#7ee0c3' },
+  { src: 'music/song3.mp3', title: '사랑으로 (love)',      artist: 'wave to earth', color: '#8ecbff' },
+];
+const CASSETTE_NEAR = 24;
+const cassette = { x: 14, y: 200, near: false };
+let musicOpen = false, current = -1;
+const bgm = new Audio();
+bgm.loop = true;          // 한 곡 반복
+bgm.preload = 'none';
+
+function updateCassette() {
+  const bush = decor.find(d => d.type === 'bush');
+  if (bush) { cassette.x = bush.x; cassette.y = bush.y; }
+  const near = state === 'play' && Math.hypot(player.x - cassette.x, player.y - cassette.y) < CASSETTE_NEAR;
+  if (near && !cassette.near && !musicOpen) openMusic();   // 다가가면 자동으로 선택 창
+  cassette.near = near;
+}
+
+function drawCassette() {
+  const x = Math.round(cassette.x), y = Math.round(cassette.y) - 12 + Math.round(Math.sin(t * 2.5) * 1);
+  rect(x - 7, y - 8, 15, 9, K);
+  rect(x - 6, y - 7, 13, 7, current >= 0 ? SONGS[current].color : '#ff9ab8');
+  rect(x - 5, y - 6, 11, 2, '#fffaf2');
+  rect(x - 4, y - 3, 9, 3, '#3a2a44');
+  const spin = current >= 0 && Math.floor(t * 6) % 2;
+  rect(x - 3, y - 2, 2, 1, spin ? '#8a7a96' : '#fff'); rect(x + 2, y - 2, 2, 1, spin ? '#fff' : '#8a7a96');
+  rect(x - 3, y, 7, 1, '#d9c7ad');
+  if (!cassette.near && current < 0) {        // 반짝이
+    const a = Math.sin(t * 4);
+    if (a > 0.3) { ctx.globalAlpha = a; rect(x + 8, y - 11, 1, 3, '#fff6d6'); rect(x + 7, y - 10, 3, 1); ctx.globalAlpha = 1; }
+  }
+}
+
+const musicEl = document.getElementById('music');
+const tapesEl = document.getElementById('tapes');
+const mmsg = document.getElementById('mmsg');
+const walkman = document.getElementById('walkman');
+const wnow = document.getElementById('wnow');
+const wplay = document.getElementById('wplay');
+
+SONGS.forEach((sg, i) => {
+  const b = document.createElement('button');
+  b.className = 'tape'; b.style.setProperty('--c', sg.color);
+  b.innerHTML = `<span class="reels"><i></i><i></i></span><span class="label"><b></b><small></small></span>`;
+  b.querySelector('b').textContent = sg.title;
+  b.querySelector('small').textContent = sg.artist;
+  b.addEventListener('click', () => pickSong(i));
+  tapesEl.appendChild(b);
+});
+function markTapes() { [...tapesEl.children].forEach((b, i) => b.classList.toggle('on', i === current)); }
+
+function openMusic() {
+  musicOpen = true; input.x = input.y = 0;
+  mmsg.textContent = '';
+  markTapes();
+  musicEl.classList.remove('hidden');
+  chime([659, 784], 0.07);
+}
+function closeMusic() { musicOpen = false; musicEl.classList.add('hidden'); }
+document.getElementById('mclose').addEventListener('click', closeMusic);
+musicEl.addEventListener('click', e => { if (e.target === musicEl) closeMusic(); });
+document.getElementById('wchange').addEventListener('click', openMusic);
+wplay.addEventListener('click', () => { if (bgm.paused) bgm.play(); else bgm.pause(); });
+const syncBtn = () => {
+  wplay.textContent = bgm.paused ? '▶ 재생' : '⏸ 멈춤';
+  walkman.classList.toggle('playing', !bgm.paused);
+};
+bgm.addEventListener('play', syncBtn);
+bgm.addEventListener('pause', syncBtn);
+
+function pickSong(i) {
+  const sg = SONGS[i];
+  bgm.src = sg.src;
+  bgm.play()                                   // 터치 순간에 바로 재생해야 폰에서 막히지 않음
+    .then(() => {
+      current = i;
+      wnow.textContent = `♪ ${sg.artist} - ${sg.title}`;
+      walkman.classList.remove('off');
+      markTapes();
+      chime([392, 523], 0.06);
+      setTimeout(closeMusic, 250);
+    })
+    .catch(() => { mmsg.textContent = `'${sg.src}' 파일을 못 찾았어요`; });
+}
+
+function drawBunny() {
+  const s = bunny.face;
+  const h = bunny.hop > 0 ? Math.round(Math.sin(bunny.hop / 0.32 * Math.PI) * 4) : 0;
+  const bx = Math.round(bunny.x), by = Math.round(bunny.y) - h;
+  const hx = bx + 3 * s, bdx = bx - 1 * s;
+  const WH = '#fbf7f2', PK = '#ffb3c7';
+  ctx.globalAlpha = 0.3; rect(bx - 5, Math.round(bunny.y) - 1, 11, 2, '#000'); ctx.globalAlpha = 1;
+  // 외곽선
+  circle(bdx, by - 4, 4, K); circle(hx, by - 7, 3, K);
+  const ears = s < 0 ? [hx - 1, hx + 2] : [hx - 2, hx + 1];
+  ears.forEach(ex => rect(ex - 1, by - 15, 3, 7, K));
+  const tx = s < 0 ? bdx + 3 : bdx - 5;
+  rect(tx, by - 6, 3, 3, K);                                        // 꼬리 외곽
+  // 채우기
+  circle(bdx, by - 4, 3, WH); circle(hx, by - 7, 2, WH);
+  ears.forEach(ex => { rect(ex, by - 14, 1, 6, WH); });
+  rect(ears[0], by - 13, 1, 3, PK);
+  rect(tx + 1, by - 5, 1, 1, WH); rect(s < 0 ? bdx + 3 : bdx - 3, by - 5, 1, 1, WH); // 꼬리
+  rect(hx + s, by - 8, 1, 1, K);                                    // 눈
+  rect(hx + 2 * s, by - 6, 1, 1, '#ff8fa3');                        // 코
+  rect(hx, by - 6, 1, 1, PK);                                       // 볼
+  rect(bdx - 2, by - 1, 2, 1, '#e8e0d6'); rect(bdx + 1, by - 1, 2, 1, '#e8e0d6'); // 발
+}
+
+function drawSprite(rows, ox, oy, flip) {
+  rows.forEach((row, r) => {
+    for (let c = 0; c < 12; c++) {
+      const ch = row[flip ? 11 - c : c];
+      if (ch === '.') continue;
+      ctx.fillStyle = PAL[ch];
+      ctx.fillRect(ox + c, oy + r, 1, 1);
+    }
+  });
+}
+
+function drawPlayer() {
+  const p = player;
+  const side = p.dir === 'left' || p.dir === 'right';
+  const step = p.moving ? Math.floor(p.anim / 0.14) % 4 : -1;
+  let legs;
+  if (side) legs = step === 0 || step === 2 ? LEGS.side.w1 : LEGS.side.stand;
+  else legs = step === 0 ? LEGS.front.w1 : step === 2 ? LEGS.front.w2 : LEGS.front.stand;
+  const bob = step === 1 || step === 3 ? -1 : 0;
+  const top = side ? TOP.side : TOP[p.dir];
+
+  const ox = Math.round(p.x) - 6, oy = Math.round(p.y) - 16 + bob;
+  ctx.globalAlpha = 0.3 * p.alpha; rect(ox + 2, Math.round(p.y) - 1, 8, 2, '#000');
+  ctx.globalAlpha = p.alpha;
+  drawSprite(top.concat(legs), ox, oy, p.dir === 'left');
+  ctx.globalAlpha = 1;
+}
+
+function render() {
+  ctx.setTransform(1, 0, 0, 1, 0, OY);
+  drawSky();
+  drawPalace();
+  drawGround();
+
+  const list = decor.map(d => ({ y: d.y, draw: () => (d.type === 'lamp' ? drawLamp(d) : drawBush(d)) }));
+  list.push({ y: player.y, draw: drawPlayer }, { y: bunny.y, draw: drawBunny }, { y: cassette.y + 0.5, draw: drawCassette });
+  list.sort((a, b) => a.y - b.y).forEach(o => o.draw());
+
+  petals.forEach(p => rect(Math.round(p.x), Math.round(p.y), (p.ph > 3 ? 2 : 1), 1, p.c));
+}
+
+/* ================== 다음 화면 (배경음악이 끊기지 않게 같은 페이지 안에서 열기) ================== */
+let paused = false;
+function openNextScene() {
+  if (!CONFIG.nextPage) return;
+  const f = document.createElement('iframe');
+  f.src = CONFIG.nextPage;
+  f.allow = 'microphone; autoplay';
+  f.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#0d0a14;';
+  document.body.appendChild(f);
+  walkman.style.display = 'none';
+  paused = true;             // 입장 화면은 멈춤 (음악만 계속)
+}
+
+/* ================== 효과음 ================== */
+let actx = null;
+function ensureAudio() {
+  if (!CONFIG.sfx) return;
+  if (navigator.audioSession) try { navigator.audioSession.type = 'playback'; } catch (e) {} // 아이폰 무음 모드에서도 소리 나게
+  if (!actx) { const A = window.AudioContext || window.webkitAudioContext; if (A) actx = new A(); }
+  if (actx && actx.state === 'suspended') actx.resume();
+}
+function chime(notes, step) {
+  if (!actx) return;
+  const t0 = actx.currentTime;
+  notes.forEach((f, i) => {
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = 'square'; o.frequency.value = f;
+    g.gain.setValueAtTime(0.045, t0 + i * step);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + i * step + 0.2);
+    o.connect(g).connect(actx.destination);
+    o.start(t0 + i * step); o.stop(t0 + i * step + 0.22);
+  });
+}
+
+/* ================== 인트로: 생일 축하 노래 + 서서히 밝아짐 ================== */
+// 'Happy Birthday to You' 멜로디 (음, 박자)
+const SONG_BEAT = 0.5;   // 한 박 길이(초) — 작을수록 빨라짐
+const MELODY = [
+  ['G4',.75],['G4',.25],['A4',1],['G4',1],['C5',1],['B4',2],
+  ['G4',.75],['G4',.25],['A4',1],['G4',1],['D5',1],['C5',2],
+  ['G4',.75],['G4',.25],['G5',1],['E5',1],['C5',1],['B4',1],['A4',1],
+  ['F5',.75],['F5',.25],['E5',1],['C5',1],['D5',1],['C5',3],
+];
+// 반주: [시작 박, 베이스, 화음]
+const BASS = [
+  [1,'C3',['E4','G4']],[4,'G2',['F4','B4']],[7,'G2',['F4','B4']],[10,'C3',['E4','G4']],
+  [13,'C3',['E4','G4']],[16,'F2',['F4','A4']],[19,'C3',['E4','G4']],[21,'G2',['F4','B4']],[22,'C3',['E4','G4']],
+];
+function freq(n) {
+  const i = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 }[n[0]];
+  return 440 * Math.pow(2, (i + (parseInt(n.slice(1)) + 1) * 12 - 69) / 12);
+}
+function tone(f, start, dur, type, vol) {
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.type = type; o.frequency.value = f;
+  g.gain.setValueAtTime(0.0001, start);
+  g.gain.exponentialRampToValueAtTime(vol, start + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+  o.connect(g).connect(actx.destination);
+  o.start(start); o.stop(start + dur + 0.05);
+}
+function playSong() {
+  const t0 = actx.currentTime + 0.3;
+  let b = 0;
+  MELODY.forEach(([n, d]) => {
+    const st = t0 + b * SONG_BEAT, len = Math.max(0.18, d * SONG_BEAT * 0.92);
+    tone(freq(n), st, len, 'square', 0.05);
+    tone(freq(n), st, len, 'triangle', 0.09);
+    b += d;
+  });
+  BASS.forEach(([beat, bass, chord], i) => {
+    const end = i < BASS.length - 1 ? BASS[i + 1][0] : beat + 3;
+    for (let k = beat; k < end; k++) {
+      const st = t0 + k * SONG_BEAT;
+      if ((k - beat) % 3 === 0) tone(freq(bass), st, SONG_BEAT * 0.9, 'triangle', 0.14);
+      else chord.forEach(n => tone(freq(n), st, SONG_BEAT * 0.5, 'triangle', 0.035));
+    }
+  });
+  return 0.3 + b * SONG_BEAT;   // 곡 길이(초)
+}
+
+const introEl = document.getElementById('intro');
+const notesEl = document.getElementById('notes');
+let introStarted = false;
+function startIntro() {
+  if (introStarted) return;
+  introStarted = true;
+  ensureAudio();
+  const len = actx ? playSong() : 6;
+  introEl.classList.add('playing');
+  // 음표가 올라가는 연출
+  const noteTimer = setInterval(() => {
+    const sp = document.createElement('span');
+    sp.textContent = Math.random() < 0.5 ? '♪' : '♫';
+    sp.style.left = rnd(8, 88) + '%';
+    sp.style.color = ['#ffd166', '#ff9ab8', '#8ecbff', '#7ee0c3'][Math.floor(rnd(0, 4))];
+    notesEl.appendChild(sp);
+    setTimeout(() => sp.remove(), 4000);
+  }, 450);
+  // 노래 내내 서서히 밝아짐 → 끝날 즈음 화면 등장
+  requestAnimationFrame(() => {
+    introEl.style.transition = `opacity ${len - 0.6}s ease-in 0.6s`;
+    introEl.classList.add('gone');
+  });
+  setTimeout(() => {
+    clearInterval(noteTimer);
+    introEl.remove();
+    if (state === 'intro') state = 'play';
+  }, len * 1000 + 300);
+}
+introEl.addEventListener('pointerdown', e => { e.preventDefault(); startIntro(); });
+
+/* ================== 조이스틱 ================== */
+const panel = document.getElementById('joyzone');
+const base = document.getElementById('stick');
+const knob = document.getElementById('knob');
+
+function joyMove(e) {
+  const r = base.getBoundingClientRect();
+  let dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+  const max = r.width * 0.36, len = Math.hypot(dx, dy);
+  if (len > max) { dx *= max / len; dy *= max / len; }
+  knob.style.transform = `translate(${dx}px, ${dy}px)`;
+  input.x = dx / max; input.y = dy / max;
+}
+panel.addEventListener('pointerdown', e => {
+  if (state === 'intro') return;
+  ensureAudio();
+  joyId = e.pointerId;
+  panel.setPointerCapture(joyId);
+  base.classList.add('on');
+  joyMove(e);
+  e.preventDefault();
+});
+panel.addEventListener('pointermove', e => { if (e.pointerId === joyId) joyMove(e); });
+const joyEnd = e => {
+  if (e.pointerId !== joyId) return;
+  joyId = null; input.x = input.y = 0;
+  knob.style.transform = ''; base.classList.remove('on');
+};
+panel.addEventListener('pointerup', joyEnd);
+panel.addEventListener('pointercancel', joyEnd);
+document.addEventListener('contextmenu', e => e.preventDefault());
+
+// PC 테스트용 방향키/WASD
+addEventListener('keydown', e => { keys[e.key] = true; if (!introStarted) startIntro(); else ensureAudio(); });
+addEventListener('keyup', e => { keys[e.key] = false; });
+
+/* ================== 시작 ================== */
+new ResizeObserver(resize).observe(document.getElementById('screen'));
+resize();
+reset();
+state = 'intro';
+addEventListener('pageshow', e => { if (e.persisted) reset(); }); // 뒤로가기로 돌아왔을 때 초기화
+
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  if (paused) { requestAnimationFrame(loop); return; }
+  update(dt);
+  render();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
