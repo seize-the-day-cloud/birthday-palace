@@ -166,6 +166,7 @@
   <div id="notes"></div>
   <div class="words big">♪ Happy Birthday ♪</div>
   <div class="words tap">화면을 터치해 주세요</div>
+  <div style="position:absolute;right:10px;top:calc(env(safe-area-inset-top) + 8px);font-size:9px;opacity:.3">v5</div>
   <div class="words" id="a2hs" style="position:absolute;bottom:calc(env(safe-area-inset-bottom) + 24px);left:16px;right:16px;font-size:11px;opacity:.55;line-height:1.6;display:none">📱 공유 버튼 → “홈 화면에 추가” 후 열면<br>주소창 없이 꽉 찬 화면으로 볼 수 있어요</div>
 </div>
 
@@ -891,7 +892,7 @@ let songUrl = null, songLen = 0;
     const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
     const beats = MELODY.reduce((a, m) => a + m[1], 0);
     songLen = 0.3 + beats * SONG_BEAT;
-    const off = new OAC(1, Math.ceil((songLen + 0.6) * 22050), 22050);
+    const off = new OAC(1, Math.ceil((songLen + 0.6) * 44100), 44100);
     const keep = actx; actx = off; playSong(); actx = keep;
     const buf = await new Promise((res, rej) => { const p = off.startRendering(); if (p && p.then) p.then(res, rej); else off.oncomplete = e => res(e.renderedBuffer); });
     songUrl = toWavUrl(buf);
@@ -945,7 +946,9 @@ function startIntro() {
     if (state === 'intro') state = 'play';
   }, len * 1000 + 300);
 }
-introEl.addEventListener('pointerdown', e => { e.preventDefault(); startIntro(); });
+// 아이폰은 touchstart/pointerdown에서는 소리 재생을 허락하지 않음 → 손을 뗄 때(click/touchend) 시작
+introEl.addEventListener('touchend', e => { e.preventDefault(); startIntro(); });
+introEl.addEventListener('click', () => startIntro());
 
 /* ================== 조이스틱 ================== */
 const panel = document.getElementById('joyzone');
