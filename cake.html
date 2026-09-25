@@ -6,6 +6,8 @@
 <meta name="theme-color" content="#0d0a14">
 <title>Happy Birthday</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri/dist/galmuri.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&display=swap">
+<link rel="preload" href="fonts/NanumGaRamYeonGgoc.woff2" as="font" type="font/woff2" crossorigin>
 <style>
   :root{ --ink:#2b1d2e; --paper:#fffaf2; --pink:#f5d38a; --accent:#e8485f; }
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
@@ -24,16 +26,26 @@
     text-shadow:2px 0 0 var(--ink),-2px 0 0 var(--ink),0 2px 0 var(--ink),0 -2px 0 var(--ink),2px 2px 0 var(--ink),-2px -2px 0 var(--ink),2px -2px 0 var(--ink),-2px 2px 0 var(--ink);
     transition:opacity .4s;
   }
-  #shout{
-    position:absolute;left:8px;right:8px;text-align:center;pointer-events:none;
-    font-size:24px;line-height:1.35;color:#fff6d6;letter-spacing:1px;
-    text-shadow:3px 0 0 #c8243e,-3px 0 0 #c8243e,0 3px 0 #c8243e,0 -3px 0 #c8243e,3px 3px 0 #c8243e,-3px -3px 0 #c8243e,3px -3px 0 #c8243e,-3px 3px 0 #c8243e,5px 6px 0 rgba(43,29,46,.6);
-    animation:shoutIn .5s steps(5) both, shoutShake .12s steps(2) .5s 12, shoutOut .6s ease 3.3s forwards;
-    transform-origin:50% 100%;
+  #shout{                                        /* 외치는 말풍선 (귀여운 폰트) */
+    position:absolute;left:50%;width:max-content;max-width:86%;text-align:center;pointer-events:none;
+    font-family:'Jua','Galmuri11',sans-serif;font-size:25px;line-height:1.3;color:#2b1d2e;
+    background:#fffaf2;border:4px solid #2b1d2e;border-radius:22px;padding:12px 20px 10px;
+    box-shadow:0 5px 0 rgba(43,29,46,.45);
+    transform:translateX(-50%);transform-origin:50% 100%;
+    animation:shoutIn .45s cubic-bezier(.3,1.6,.5,1) both, shoutShake .1s linear .45s 4, shoutOut .5s ease 3.4s forwards;
   }
-  @keyframes shoutIn{0%{transform:scale(.2);opacity:0;}70%{transform:scale(1.18);opacity:1;}100%{transform:scale(1);}}
-  @keyframes shoutShake{0%{transform:translate(-2px,1px) rotate(-1.5deg);}100%{transform:translate(2px,-1px) rotate(1.5deg);}}
-  @keyframes shoutOut{to{opacity:0;transform:translateY(-10px);}}
+  #shout b{color:#e8485f;font-weight:normal;}
+  #shout::after{                                 /* 말꼬리 */
+    content:"";position:absolute;left:50%;bottom:-17px;margin-left:-11px;width:22px;height:16px;
+    background:#2b1d2e;clip-path:polygon(0 0,100% 0,50% 100%);
+  }
+  #shout::before{
+    content:"";position:absolute;left:50%;bottom:-9px;margin-left:-7px;width:14px;height:10px;z-index:1;
+    background:#fffaf2;clip-path:polygon(0 0,100% 0,50% 100%);
+  }
+  @keyframes shoutIn{0%{transform:translateX(-50%) scale(.2);opacity:0;}100%{transform:translateX(-50%) scale(1);opacity:1;}}
+  @keyframes shoutShake{0%,100%{transform:translateX(-50%) rotate(0);}50%{transform:translateX(-50%) rotate(1.2deg);}}
+  @keyframes shoutOut{to{opacity:0;transform:translateX(-50%) translateY(-8px);}}
   #sub{
     position:absolute;left:12px;right:12px;top:calc(env(safe-area-inset-top) + 46px);
     text-align:center;font-size:12px;color:#fff;pointer-events:none;
@@ -65,18 +77,24 @@
   /* ---- 편지 ---- */
   #letter{
     position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;
-    padding:18px;background:rgba(43,29,46,.45);
+    padding:10px;background:rgba(43,29,46,.45);
+  }
+  @font-face{
+    font-family:'NanumGaRamYeonGgoc';
+    src:url('fonts/NanumGaRamYeonGgoc.woff2') format('woff2');
+    font-display:swap;
   }
   #letter .paper{
-    width:100%;max-width:340px;background:var(--paper);border:4px solid var(--ink);
-    box-shadow:8px 8px 0 rgba(43,29,46,.35);padding:18px 18px 16px;position:relative;
-    background-image:repeating-linear-gradient(transparent 0 27px,#f3dfe6 27px 28px);
+    width:100%;max-width:480px;background:var(--paper);border:4px solid var(--ink);
+    box-shadow:8px 8px 0 rgba(43,29,46,.35);padding:22px 20px 18px;position:relative;
+    background-image:repeating-linear-gradient(transparent 0 37px,#f3dfe6 37px 38px);
+    background-position:0 22px;
     animation:open .45s steps(6);
   }
   @keyframes open{from{transform:translateY(40px) scale(.7);opacity:0;}to{transform:none;opacity:1;}}
   #letter .stamp{position:absolute;right:14px;top:-18px;background:var(--pink);border:3px solid var(--ink);padding:4px 8px;font-size:12px;}
-  #ltext{white-space:pre-wrap;word-break:keep-all;font-size:14px;line-height:28px;min-height:196px;max-height:58vh;overflow-y:auto;}
-  #ltext .caret{display:inline-block;width:8px;height:14px;background:var(--ink);vertical-align:-2px;animation:blink 1s steps(2) infinite;}
+  #ltext{white-space:pre-wrap;word-break:keep-all;font-family:'NanumGaRamYeonGgoc','Galmuri11',sans-serif;font-size:27px;line-height:38px;min-height:52vh;max-height:68vh;overflow-y:auto;color:#3a2a34;}
+  #ltext .caret{display:inline-block;width:3px;height:24px;background:var(--ink);vertical-align:-2px;animation:blink 1s steps(2) infinite;}
   @keyframes blink{50%{opacity:0;}}
   #letter .row{display:flex;gap:8px;margin-top:12px;}
   #letter .row .pbtn{flex:1;font-size:13px;padding:9px 0;box-shadow:0 4px 0 var(--ink);border-width:3px;}
@@ -89,7 +107,7 @@
     <canvas id="game"></canvas>
     <div id="title"></div>
     <div id="sub"></div>
-    <div id="shout" class="hide">누나 다시 한번<br>생일 축하해!!</div>
+    <div id="shout" class="hide">누나 다시 한번<br><b>생일 축하해!!</b> 🎉</div>
     <div id="bottom">
       <div id="meterWrap" class="hide" style="display:flex;flex-direction:column;align-items:center;gap:4px">
         <div id="meter"><i></i><b></b></div>
@@ -361,7 +379,7 @@ $('lclose').addEventListener('click', () => {
   letterEl.classList.add('hide');
   shoutT = 0;
   const r = cvs.getBoundingClientRect(), k = r.height / H;
-  shoutEl.style.top = Math.max(60, (tableY - 64) * k - 70) + 'px';
+  shoutEl.style.top = Math.max(56, (tableY - 64) * k - 118) + 'px';
   shoutEl.classList.remove('hide');
   shoutEl.style.animation = 'none'; void shoutEl.offsetWidth; shoutEl.style.animation = '';   // 다시 눌러도 처음부터
   chime([523, 659, 784, 1047, 1319], 0.07, 0.04);
@@ -1149,7 +1167,7 @@ function drawCrowd() {
 
 function drawBoyShout(ox0, oy0, w, h) {
   // 외치는 모션: 앞으로 살짝 튀어나오듯 + 부르르 떨림, 입 크게, 두 손을 입가에 모음
-  const shake = shoutT > 0.4 ? (Math.floor(t * 30) % 2 ? 1 : -1) : 0;
+  const shake = (shoutT > 0.35 && shoutT < 0.95) ? (Math.floor(t * 24) % 2 ? 1 : -1) : 0;   // 잠깐만 부르르
   const lift = shoutT < 0.35 ? Math.round(shoutT / 0.35 * 3) : 3;
   const ox = ox0 + shake, oy = oy0 - lift;
   ctx.drawImage(boyCv, ox, oy, w, h);
