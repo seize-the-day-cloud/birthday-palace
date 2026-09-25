@@ -40,7 +40,7 @@
   }
   #bubble{
     position:absolute;left:0;top:0;z-index:1;
-    padding:6px 10px;font-size:14px;white-space:nowrap;color:var(--ink);
+    padding:6px 10px;font-size:14px;white-space:normal;word-break:keep-all;text-align:center;width:max-content;max-width:170px;line-height:1.5;color:var(--ink);
     background:#fff;border:3px solid var(--ink);
     box-shadow:3px 3px 0 rgba(43,29,46,.45);
     transform:translate(-50%,-100%) scale(0);transform-origin:50% 100%;
@@ -52,11 +52,11 @@
     clip-path:polygon(0 0,100% 0,50% 100%);
   }
   #bubble.show{transform:translate(-50%,-100%) scale(1);}
-  #joyzone{ /* 왼쪽 아래 조작 영역 (엄지가 조금 빗나가도 OK) */
-    position:absolute;left:0;bottom:0;width:60%;height:42%;z-index:2;
+  #joyzone{ /* 오른쪽 아래 조작 영역 (엄지가 조금 빗나가도 OK) */
+    position:absolute;right:0;bottom:0;width:60%;height:42%;z-index:2;
   }
   #stick{
-    position:absolute;left:22px;bottom:calc(22px + env(safe-area-inset-bottom));
+    position:absolute;right:22px;bottom:calc(22px + env(safe-area-inset-bottom));
     width:112px;height:112px;border-radius:50%;
     background:rgba(43,29,46,.55);
     border:4px solid rgba(43,29,46,.85);
@@ -321,7 +321,7 @@ function resize() {
     { type: 'lamp', x: 22, y: lampY }, { type: 'lamp', x: 122, y: lampY },
   ];
   decor.push({ type: 'bush', x: 14, y: lampY + 38 }, { type: 'bush', x: 130, y: lampY + 38 });
-  bunny.x = 113; bunny.y = lampY + 41;  // 오른쪽 풀숲 옆
+  bunny.x = bunny.hx = 113; bunny.y = bunny.hy = lampY + 41;  // 오른쪽 풀숲 옆
 
   sparkles = Array.from({ length: 9 }, () => ({ x: Math.round(rnd(63, 81)), y: Math.round(rnd(WALL + 8, H - 4)), ph: rnd(0, 6.28) }));
   if (state === 'play') player.y = clamp(player.y, minY(player.x), H - 2);
@@ -338,7 +338,7 @@ petals = Array.from({ length: 12 }, () => ({ x: rnd(0, W), y: rnd(0, 300), vy: r
 function minY(x) { return (x > 52 && x < 92) ? WALL + 3 : WALL + 7; } // 계단 위는 문 바로 앞까지
 function blocked(x, y) {
   const fx0 = x - 3, fx1 = x + 3, fy0 = y - 2, fy1 = y;
-  if (fx0 < bunny.x + 5 && fx1 > bunny.x - 5 && fy0 < bunny.y && fy1 > bunny.y - 3) return true;
+  if (!bunny.hidden && fx0 < bunny.x + 5 && fx1 > bunny.x - 5 && fy0 < bunny.y && fy1 > bunny.y - 3) return true;
   return decor.some(d => {
     const b = d.type === 'lamp'
       ? { x0: d.x - 3, x1: d.x + 3, y0: d.y - 3, y1: d.y }
@@ -405,10 +405,45 @@ function update(dt) {
   });
 }
 
+const LOVE_MSG = '항상 말하고 싶었는데 고맙고 사랑해';
+function bunnyWalkTo(tx, ty, dt) {
+  const dx = tx - bunny.x, dy = ty - bunny.y, d = Math.hypot(dx, dy);
+  if (d < 0.8) { bunny.x = tx; bunny.y = ty; return true; }
+  const sp = Math.min(d, 34 * dt);
+  bunny.x += dx / d * sp; bunny.y += dy / d * sp;
+  bunny.face = dx < 0 ? -1 : 1;
+  if (bunny.hop === 0) bunny.hop = 0.001;       // 깡총깡총 이동
+  return false;
+}
 function updateBunny(dt) {
+  // 🐰 이스터에그: '사랑으로'가 나오면 토끼가 풀숲에 숨고, 누나가 풀숲에 가면 튀어나와 고백
+  const egg = typeof current !== 'undefined' && current === 2 && !bgm.paused;
+  const bush = decor.find(d => d.type === 'bush' && d.x > CX);
+  let msg = '생일추카해';
+  if (egg && bush) {
+    const atBush = state === 'play' && Math.hypot(player.x - bush.x, player.y - bush.y) < 24;
+    if (bunny.revealed) {
+      if (!atBush) { bunny.revealed = false; }                        // 멀어지면 다시 숨으러 감
+      else { bunny.face = player.x < bunny.x ? -1 : 1; msg = LOVE_MSG; }
+    }
+    if (!bunny.revealed) {
+      if (!bunny.hidden) { if (bunnyWalkTo(bush.x, bush.y + 1, dt)) { bunny.hidden = true; bunny.rustle = 0.6; } }
+      else if (atBush) {                                               // 풀숲에서 뿅!
+        bunny.hidden = false; bunny.revealed = true;
+        bunny.x = bush.x - 14; bunny.y = bush.y + 4; bunny.hop = 0.001; bunny.rustle = 0.6;
+        chime([659, 784, 988, 1319], 0.09);
+      }
+    }
+  } else if (bunny.hidden || bunny.revealed || Math.hypot(bunny.x - bunny.hx, bunny.y - bunny.hy) > 1) {
+    bunny.hidden = false; bunny.revealed = false;                      // 다른 노래면 원래 자리로
+    bunnyWalkTo(bunny.hx, bunny.hy, dt);
+  }
+  if (bunny.rustle > 0) bunny.rustle -= dt;
+  if (bubbleEl.textContent !== msg) bubbleEl.textContent = msg;
+
   const d = Math.hypot(player.x - bunny.x, player.y - bunny.y);
-  bunny.near = state === 'play' && d < BUNNY_NEAR;
-  if (bunny.near) bunny.face = player.x < bunny.x ? -1 : 1;
+  bunny.near = state === 'play' && !bunny.hidden && (bunny.revealed || d < BUNNY_NEAR);
+  if (bunny.near && !bunny.revealed) bunny.face = player.x < bunny.x ? -1 : 1;
   bunny.timer -= dt;
   if (bunny.timer <= 0) {
     bunny.hop = 0.001;
@@ -420,7 +455,8 @@ function updateBunny(dt) {
   bubbleEl.classList.toggle('show', bunny.near);
   if (bunny.near) {
     const r = cvs.getBoundingClientRect(), k = r.width / W;
-    bubbleEl.style.left = (bunny.x * k) + 'px';
+    const half = bubbleEl.offsetWidth / 2 + 6;
+    bubbleEl.style.left = clamp(bunny.x * k, half, r.width - half) + 'px';
     bubbleEl.style.top = ((bunny.y + OY - 20) * k) + 'px';
   }
 }
@@ -628,6 +664,7 @@ function drawLamp({ x, y }) {
 }
 
 function drawBush({ x, y }) {
+  if (bunny.rustle > 0 && x > CX) x += Math.round(Math.sin(t * 40));   // 토끼가 들어가서 부스럭
   ctx.globalAlpha = 0.3; rect(x - 7, y - 1, 15, 2, '#000'); ctx.globalAlpha = 1;
   circle(x - 3, y - 5, 4, '#2f7a5a'); circle(x + 3, y - 5, 4, '#2f7a5a'); circle(x, y - 8, 4, '#3a9a6e');
   rect(x - 4, y - 7, 1, 1, '#ff9ab8'); rect(x + 2, y - 10, 1, 1, '#ffd166'); rect(x + 4, y - 5, 1, 1, '#ff9ab8'); rect(x - 1, y - 4, 1, 1, '#fff');
@@ -722,6 +759,14 @@ function pickSong(i) {
 }
 
 function drawBunny() {
+  if (bunny.hidden) {
+    if (Math.sin(t * 1.1) > 0.75) {          // 가끔 귀만 빼꼼
+      const x = Math.round(bunny.x) + 1, y = Math.round(bunny.y) - 13;
+      rect(x - 1, y - 5, 3, 6, K); rect(x, y - 4, 1, 5, '#fbf7f2');
+      rect(x + 2, y - 5, 3, 6, K); rect(x + 3, y - 4, 1, 5, '#fbf7f2'); rect(x + 3, y - 3, 1, 2, '#ffb3c7');
+    }
+    return;
+  }
   const s = bunny.face;
   const h = bunny.hop > 0 ? Math.round(Math.sin(bunny.hop / 0.32 * Math.PI) * 4) : 0;
   const bx = Math.round(bunny.x), by = Math.round(bunny.y) - h;
