@@ -104,6 +104,13 @@
   .tape.on .reels i{animation:spin 1s linear infinite;border-style:dashed;}
   @keyframes spin{to{transform:rotate(360deg);}}
   #music .msg{margin-top:12px;font-size:11px;text-align:center;opacity:.7;min-height:14px;}
+  #music .msg:empty{display:none;}
+  #intro .wish{
+    position:absolute;right:10px;top:calc(env(safe-area-inset-top) + 8px);
+    font-size:10px;color:#fff3dc;opacity:0;pointer-events:none;
+    animation:wish 5s ease forwards .6s;
+  }
+  @keyframes wish{0%{opacity:0;}15%{opacity:.4;}65%{opacity:.4;}100%{opacity:0;}}
 
   /* ---- 워크맨 미니 플레이어 ---- */
   #walkman{
@@ -155,6 +162,7 @@
     <div class="head"><span>♪ 음악을 골라줘</span><button class="x" id="mclose" aria-label="닫기">✕</button></div>
     <div id="tapes"></div>
     <div class="msg" id="mmsg"></div>
+    <div class="msg">재생하는데 조오금 걸릴 수 있어!</div>
   </div>
 </div>
 <div id="walkman" class="off">
@@ -166,8 +174,8 @@
   <div id="notes"></div>
   <div class="words big">♪ Happy Birthday ♪</div>
   <div class="words tap">화면을 터치해 주세요</div>
-  <div style="position:absolute;right:10px;top:calc(env(safe-area-inset-top) + 8px);font-size:9px;opacity:.3">v5</div>
-  <div class="words" id="a2hs" style="position:absolute;bottom:calc(env(safe-area-inset-bottom) + 24px);left:16px;right:16px;font-size:11px;opacity:.55;line-height:1.6;display:none">📱 공유 버튼 → “홈 화면에 추가” 후 열면<br>주소창 없이 꽉 찬 화면으로 볼 수 있어요</div>
+  <div class="wish">이번엔 제발 배포 성공하기를 ㅠㅠ</div>
+  <div class="words" id="a2hs" style="position:absolute;bottom:calc(env(safe-area-inset-bottom) + 24px);left:16px;right:16px;font-size:11px;opacity:.55;line-height:1.6;display:none">📱 공유 버튼 → 홈 화면에 추가 후 열면<br>더 이쁘게 볼 수 있어!!</div>
 </div>
 
 <script>
@@ -871,7 +879,8 @@ function goFullscreen() {
 (() => {
   const ios = /iPhone|iPod/.test(navigator.userAgent);
   const standalone = navigator.standalone || matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches;
-  if (ios && !standalone) document.getElementById('a2hs').style.display = 'block';
+  const touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  if ((ios || touch) && !standalone) document.getElementById('a2hs').style.display = 'block';
 })();
 // 아이폰은 무음 모드/첫 재생 제한 때문에 Web Audio 소리가 안 날 수 있음
 // → 생일 노래를 미리 WAV로 만들어 두고 <audio>로 재생 (무음 모드에서도 나옴)

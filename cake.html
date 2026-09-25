@@ -334,7 +334,7 @@ $('again').addEventListener('click', () => {
   clearInterval(typer);
   candles.forEach(c => { c.lit = false; c.hp = 1; });
   fireworks = []; confetti = [];
-  dove.on = false; env.state = 'none'; openBtn.classList.add('hide');
+  dove.on = false; env.state = 'none'; crowdWas = false; openBtn.classList.add('hide');
   setPhase('ready');
 });
 const openBtn = $('openLetterBtn');
@@ -490,7 +490,7 @@ const ease = p => p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
 function updateDove(dt) {
   if (!dove.on) return;
   dove.t += dt;
-  const T = dove.t - 0.8;                    // 불 끄고 잠시 뒤 창문에서 등장
+  const T = dove.t - CHEER_TIME;             // 축하 장면이 끝나면 창문에서 등장
   const start = { x: CX + 4, y: 60, s: 0.3 }, hover = { x: CX - 4, y: plateY - 2, s: 2.4 }, away = { x: CX - 90, y: -30, s: 1.2 };
   if (T < 0) { dove.s = 0; return; }
   if (T < 3) {                               // 창문에서 날아옴 (점점 커짐)
@@ -970,6 +970,58 @@ function buildBoy(cv, blink) {
   } });
 }
 buildBoy(boyCv, false); buildBoy(boyBlink, true);
+/* ================== 축하 장면: 박수 + 시종/하객 등장 ================== */
+const CHEER_TIME = 4.2;                        // 사람들이 축하하는 시간(초) → 이후 비둘기
+const cheering = () => phase === 'party' && dove.on && dove.t > 0.25 && dove.t < CHEER_TIME;
+let crowdWas = false;
+const CROWD = [
+  // x, 발 위치(테이블 기준), 종류, 머리색, 옷색
+  { x: 12,  dy: 3,  kind: 'butler', hair: '#2b2230' },
+  { x: 29,  dy: 1,  kind: 'maid',   hair: '#6a3e2a' },
+  { x: 46,  dy: 3,  kind: 'guest',  hair: '#e0b04a', top: '#3fa5a0' },
+  { x: 98,  dy: 3,  kind: 'guest',  hair: '#3a2a2a', top: '#c86aa8' },
+  { x: 115, dy: 1,  kind: 'maid',   hair: '#2b2230' },
+  { x: 132, dy: 3,  kind: 'butler', hair: '#8a5a3a' },
+  { x: 21,  dy: -9, kind: 'guest',  hair: '#5a3a2a', top: '#d8a23a', far: true },
+  { x: 38,  dy: -10, kind: 'butler', hair: '#2b2230', far: true },
+  { x: 106, dy: -10, kind: 'guest', hair: '#c9c2d4', top: '#6a7ad8', far: true },
+  { x: 123, dy: -9, kind: 'maid',   hair: '#e0b04a', far: true },
+];
+function drawPerson(p, i) {
+  const x = p.x, fy = tableY + p.dy;
+  const jump = Math.max(0, Math.round(Math.sin(t * 7 + i * 1.3) * 2));
+  const up = Math.sin(t * 7 + i * 1.3) > 0;           // 만세 / 내림 번갈아
+  const y = fy - jump, top = p.kind === 'butler' ? '#1e1a24' : p.kind === 'maid' ? '#241c2e' : p.top;
+  const O = '#1e1624', S = '#f3cfb3';
+  // 몸
+  rect(x - 5, y - 13, 11, 14, O); rect(x - 4, y - 12, 9, 13, top);
+  if (p.kind === 'butler') { rect(x - 1, y - 12, 3, 6, '#f4f1ea'); rect(x - 1, y - 12, 3, 1, '#c8243e'); }
+  if (p.kind === 'maid') { rect(x - 3, y - 8, 7, 9, '#f4f1ea'); rect(x - 4, y - 12, 9, 1, '#f4f1ea'); }
+  if (p.kind === 'guest') { rect(x - 4, y - 12, 9, 1, '#f5d38a'); }
+  // 팔
+  if (up) { rect(x - 7, y - 20, 3, 8, O); rect(x - 6, y - 19, 1, 6, top); rect(x - 7, y - 21, 3, 2, S);
+            rect(x + 5, y - 20, 3, 8, O); rect(x + 6, y - 19, 1, 6, top); rect(x + 5, y - 21, 3, 2, S); }
+  else    { rect(x - 7, y - 11, 3, 8, O); rect(x - 6, y - 10, 1, 6, top); rect(x - 6, y - 4, 1, 1, S);
+            rect(x + 5, y - 11, 3, 8, O); rect(x + 6, y - 10, 1, 6, top); rect(x + 6, y - 4, 1, 1, S); }
+  // 머리
+  circle(x, y - 18, 5, O); circle(x, y - 18, 4, S);
+  rect(x - 4, y - 23, 9, 3, p.hair); rect(x - 5, y - 21, 2, 4, p.hair); rect(x + 4, y - 21, 2, 4, p.hair);
+  if (p.kind === 'maid') { rect(x - 3, y - 24, 7, 1, '#f4f1ea'); rect(x - 5, y - 17, 1, 5, p.hair); rect(x + 5, y - 17, 1, 5, p.hair); }
+  rect(x - 2, y - 18, 1, 1, O); rect(x + 2, y - 18, 1, 1, O);          // 눈
+  rect(x - 1, y - 15, 3, 1, '#b84a5a');                                  // 웃는 입
+  rect(x - 3, y - 16, 1, 1, '#f59aa0'); rect(x + 3, y - 16, 1, 1, '#f59aa0');
+}
+function poof(xs) {
+  xs.forEach(p => { for (let k = 0; k < 7; k++) sparks.push({ x: p.x + rnd(-6, 6), y: tableY + p.dy - rnd(4, 24), vx: rnd(-20, 20), vy: rnd(-25, 5), life: rnd(0.4, 0.8), c: ['#ffffff', '#f5d38a', '#ffb3c7'][k % 3] }); });
+}
+function drawCrowd() {
+  const on = cheering();
+  if (on !== crowdWas) { poof(CROWD); crowdWas = on; }                  // 나타날 때/사라질 때 펑!
+  if (!on) return;
+  CROWD.filter(p => p.far).forEach((p, i) => drawPerson(p, i + 7));
+  CROWD.filter(p => !p.far).forEach((p, i) => drawPerson(p, i));
+}
+
 function drawBoy() {
   const sway = Math.sin(t * (phase === 'party' ? 2.4 : 1.5));   // 아주 살짝만 흔들림
   const w = Math.round(boyCv.width * BOY_SCALE), h = Math.round(boyCv.height * BOY_SCALE);
@@ -978,6 +1030,16 @@ function drawBoy() {
   ctx.imageSmoothingEnabled = false;
   const blinking = (t % 3.6) < 0.13;
   ctx.drawImage(blinking ? boyBlink : boyCv, ox, oy, w, h);
+  if (cheering()) {                              // 짝짝짝 박수
+    const together = Math.floor(t / 0.16) % 2 === 0;
+    const cx = ox + Math.round(w / 2), hy = tableY - 14, gap = together ? 2 : 9;
+    [[-1], [1]].forEach(([d]) => {
+      const hx = cx + d * gap - (d < 0 ? 5 : 0);
+      rect(hx - 1, hy - 1, 7, 8, '#1e1624'); rect(hx, hy, 5, 6, '#f3cfb3'); rect(hx + (d < 0 ? 4 : 0), hy + 1, 1, 4, '#e2b596');
+      rect(hx + (d < 0 ? 0 : 1), hy + 6, 4, 3, '#2e3a5c');           // 소매
+    });
+    if (together) { rect(cx - 8, hy - 5, 2, 1, '#fff6d6'); rect(cx + 7, hy - 5, 2, 1, '#fff6d6'); rect(cx, hy - 7, 1, 2, '#fff6d6'); }
+  }
 }
 
 // 방 조명: 전체를 어둡게 덮고, 촛불 주변만 따뜻하게 살짝 밝힘
@@ -1020,6 +1082,7 @@ function render() {
     // 성능: 변하지 않는 배경/테이블은 한 번만 그려두고 재사용
     if (roomDirty) buildRoomCache();
     ctx.drawImage(roomBg, 0, 0);
+    drawCrowd();
     drawBoy();
     ctx.drawImage(roomFg, 0, 0);
     drawCdPlayer(121, tableY + 18);
