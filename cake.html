@@ -490,7 +490,7 @@ const ease = p => p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
 function updateDove(dt) {
   if (!dove.on) return;
   dove.t += dt;
-  const T = dove.t - CHEER_TIME;             // 축하 장면이 끝나면 창문에서 등장
+  const T = dove.t - CHEER_TIME - 1.2;       // 사람들이 퇴장할 즈음 창문에서 등장
   const start = { x: CX + 4, y: 60, s: 0.3 }, hover = { x: CX - 4, y: plateY - 2, s: 2.4 }, away = { x: CX - 90, y: -30, s: 1.2 };
   if (T < 0) { dove.s = 0; return; }
   if (T < 3) {                               // 창문에서 날아옴 (점점 커짐)
@@ -664,18 +664,26 @@ function frame(x, y, w, h) {
 }
 function drawCalendarFrame(x, y) {
   frame(x, y, 26, 32);
-  const px = x + 2, py = y + 2, W2 = 22, H2 = 28;
+  const px = x + 2, py = y + 2, W2 = 22, H2 = 28, mid = px + 11;         // 가운데 기준선
   rect(px, py, W2, H2, '#fffaf2');
-  rect(px, py, W2, 7, '#c8243e'); text3('SEP', px + 5, py + 1, '#ffffff');               // 9월
-  rect(px + 4, py - 1, 1, 3, '#6a6a7a'); rect(px + 17, py - 1, 1, 3, '#6a6a7a');         // 링
-  // 날짜 칸 (작은 점)
-  for (let r = 0; r < 5; r++) for (let c = 0; c < 7; c++) rect(px + 1 + c * 3, py + 9 + r * 2, 2, 1, (c === 0 ? '#e88a9a' : '#b8b0c0'));
-  // 크게 '23' + 빨간 동그라미
-  text3('23', px + 6, py + 19, '#2b1d2e');
-  const cx = px + 11, cy = py + 21;
-  for (let a = 0; a < 40; a++) { const th = a / 40 * Math.PI * 2; rect(Math.round(cx + Math.cos(th) * 7.5), Math.round(cy + Math.sin(th) * 4.5), 1, 1, '#e8243e'); }
-  rect(cx + 6, cy - 6, 2, 1, '#e8243e');                                                   // 손으로 그린 끝
-  rect(px + 1 + 3 * 3, py + 9 + 3 * 2, 2, 1, '#e8243e');                                   // 달력 칸의 23일도 빨갛게
+  rect(px + W2 - 1, py + 1, 1, H2 - 1, '#e8dfd0'); rect(px + 1, py + H2 - 1, W2 - 1, 1, '#e8dfd0');   // 종이 그림자
+  rect(px, py, W2, 8, '#c8243e'); rect(px, py + 7, W2, 1, '#a81c34');
+  text3('SEP', mid - 5, py + 2, '#ffffff');                               // 11px 폭 → 정가운데
+  rect(px + 5, py - 1, 1, 3, '#8a8a9a'); rect(px + 16, py - 1, 1, 3, '#8a8a9a');   // 스프링 링
+  // 날짜 칸: 7칸 × 4줄, 가운데 정렬
+  const gx = mid - 10;
+  for (let r = 0; r < 4; r++) for (let c = 0; c < 7; c++) {
+    const col = c === 0 ? '#e88a9a' : c === 6 ? '#8ab0e0' : '#c9c0cc';
+    rect(gx + c * 3, py + 10 + r * 2, 2, 1, (r === 3 && c === 3) ? '#e8243e' : col);   // 23일 칸은 빨강
+  }
+  // 큰 '23' + 정확히 같은 중심의 빨간 동그라미
+  const cy = py + 22;
+  text3('23', mid - 3, cy - 2, '#2b1d2e');                                 // 7px 폭, 중심 = mid
+  const rx = 6.5, ry = 4.5;
+  for (let dy = -5; dy <= 5; dy++) for (let dx = -7; dx <= 7; dx++) {
+    const v = (dx * dx) / (rx * rx) + (dy * dy) / (ry * ry);
+    if (v > 0.78 && v < 1.18) rect(mid + dx, cy + dy, 1, 1, '#e8243e');
+  }
 }
 const CAT = [
   '...K.........K...',
@@ -1036,12 +1044,14 @@ const CROWD = [
   { x: 94,  dy: -14, kind: 'guest', hair: '#c9c2d4', top: '#6a7ad8', far: true },
   { x: 118, dy: -12, kind: 'guest', hair: '#5a3a2a', top: '#d8a23a', far: true },
 ];
-function drawPerson(p, i) {
+function drawPerson(p, i, mode) {
   const x = p.x, fy = tableY + p.dy;
-  const jump = Math.max(0, Math.round(Math.sin(t * 7 + i * 1.3) * 2));
-  const up = Math.sin(t * 7 + i * 1.3) > 0;           // 만세 / 내림 번갈아
-  const y = fy - jump, top = p.kind === 'butler' ? '#1e1a24' : p.kind === 'maid' ? '#241c2e' : p.top;
-  const O = '#1e1624', S = '#f3cfb3';
+  const walking = mode === 'exit';
+  const ph = t * 7 + i * 1.3;
+  const jump = walking ? (Math.floor(t * 10 + i) % 2) : Math.max(0, Math.round(Math.sin(ph) * 2));
+  const up = !walking && Math.sin(ph) > 0;             // 만세 / 내림 번갈아 (나갈 땐 손 흔들며 걸음)
+  const y = fy - jump, top = p.kind === 'butler' ? '#2a2432' : p.kind === 'maid' ? '#2e2638' : p.top;
+  const O = '#3a2a3a', S = '#f6d7c0';
   // 몸
   rect(x - 5, y - 13, 11, 14, O); rect(x - 4, y - 12, 9, 13, top);
   if (p.kind === 'butler') { rect(x - 1, y - 12, 3, 6, '#f4f1ea'); rect(x - 1, y - 12, 3, 1, '#c8243e'); }
@@ -1050,38 +1060,66 @@ function drawPerson(p, i) {
   // 팔
   if (up) { rect(x - 7, y - 20, 3, 8, O); rect(x - 6, y - 19, 1, 6, top); rect(x - 7, y - 21, 3, 2, S);
             rect(x + 5, y - 20, 3, 8, O); rect(x + 6, y - 19, 1, 6, top); rect(x + 5, y - 21, 3, 2, S); }
+  else if (walking) {                                   // 한 손 흔들며 퇴장
+    const wv = Math.floor(t * 6 + i) % 2;
+    const hx = p.dir < 0 ? x + 5 : x - 7;
+    rect(hx, y - 19, 3, 7, O); rect(hx + 1, y - 18, 1, 5, top); rect(hx + (wv ? 1 : -1), y - 21, 3, 2, S);
+    const ox2 = p.dir < 0 ? x - 7 : x + 5;
+    rect(ox2, y - 11, 3, 8, O); rect(ox2 + 1, y - 10, 1, 6, top);
+  }
   else    { rect(x - 7, y - 11, 3, 8, O); rect(x - 6, y - 10, 1, 6, top); rect(x - 6, y - 4, 1, 1, S);
             rect(x + 5, y - 11, 3, 8, O); rect(x + 6, y - 10, 1, 6, top); rect(x + 6, y - 4, 1, 1, S); }
   // 머리
   circle(x, y - 18, 5, O); circle(x, y - 18, 4, S);
   rect(x - 4, y - 23, 9, 3, p.hair); rect(x - 5, y - 21, 2, 4, p.hair); rect(x + 4, y - 21, 2, 4, p.hair);
   if (p.kind === 'maid') { rect(x - 3, y - 24, 7, 1, '#f4f1ea'); rect(x - 5, y - 17, 1, 5, p.hair); rect(x + 5, y - 17, 1, 5, p.hair); }
-  rect(x - 2, y - 18, 1, 1, O); rect(x + 2, y - 18, 1, 1, O);          // 눈
-  rect(x - 1, y - 15, 3, 1, '#b84a5a');                                  // 웃는 입
-  rect(x - 3, y - 16, 1, 1, '#f59aa0'); rect(x + 3, y - 16, 1, 1, '#f59aa0');
+  // 웃는 눈 (반달) + 작은 미소 + 볼터치
+  const E = '#5a3a44';
+  [[-3, 0], [-2, -1], [-1, 0], [1, 0], [2, -1], [3, 0]].forEach(([dx, dy]) => rect(x + dx, y - 18 + dy, 1, 1, E));   // ^ ^
+  rect(x - 1, y - 16, 3, 1, '#c86a78'); rect(x, y - 15, 1, 1, '#e58a96');   // 활짝 웃는 입
+  rect(x - 4, y - 17, 1, 1, '#f7a8b4'); rect(x + 4, y - 17, 1, 1, '#f7a8b4');
 }
 function poof(xs) {
   xs.forEach(p => { for (let k = 0; k < 7; k++) sparks.push({ x: p.x + rnd(-6, 6), y: tableY + p.dy - rnd(4, 24), vx: rnd(-20, 20), vy: rnd(-25, 5), life: rnd(0.4, 0.8), c: ['#ffffff', '#f5d38a', '#ffb3c7'][k % 3] }); });
 }
 const personCv = document.createElement('canvas'); personCv.width = 20; personCv.height = 32;
 const personCtx = personCv.getContext('2d');
-function drawPersonBig(p, i, scale) {
+function drawPersonBig(p, i, scale, mode, ox = 0) {
   // 작은 캔버스에 그린 뒤 확대 (도트 유지)
   const main = ctx; ctx = personCtx;
   ctx.clearRect(0, 0, 20, 32);
   const saveTable = tableY; tableY = 0;
-  drawPerson({ ...p, x: 10, dy: 31 }, i);
+  drawPerson({ ...p, x: 10, dy: 31 }, i, mode);
   tableY = saveTable; ctx = main;
   const w = Math.round(20 * scale), h = Math.round(32 * scale);
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(personCv, Math.round(p.x - w / 2), Math.round(tableY + p.dy - h + 2), w, h);
+  ctx.drawImage(personCv, Math.round(p.x + ox - w / 2), Math.round(tableY + p.dy - h + 2), w, h);
+}
+const EXIT_TIME = 2.2;                         // 축하 후 양옆으로 걸어 나가는 시간
+function crowdMode() {
+  if (!(phase === 'party' && dove.on)) return 'none';
+  const d = dove.t;
+  if (d < 0.25) return 'none';
+  if (d < CHEER_TIME) return 'cheer';
+  if (d < CHEER_TIME + EXIT_TIME + 0.4) return 'exit';
+  return 'none';
 }
 function drawCrowd() {
-  const on = cheering();
-  if (on !== crowdWas) { poof(CROWD); crowdWas = on; }                  // 나타날 때/사라질 때 펑!
-  if (!on) return;
-  CROWD.filter(p => p.far).forEach((p, i) => drawPersonBig(p, i + 7, 1.5));
-  CROWD.filter(p => !p.far).forEach((p, i) => drawPersonBig(p, i, 2));
+  const mode = crowdMode();
+  if (mode === 'cheer' && !crowdWas) poof(CROWD);                        // 등장할 때만 펑!
+  crowdWas = mode !== 'none';
+  if (mode === 'none') return;
+  const draw = (p, i, sc) => {
+    const dir = p.x < CX ? -1 : 1;
+    let ox = 0;
+    if (mode === 'exit') {                                               // 순서대로 양옆 문밖으로 퇴장
+      const te = clamp((dove.t - CHEER_TIME - i * 0.08) / EXIT_TIME, 0, 1);
+      ox = dir * te * te * 110;
+    }
+    drawPersonBig({ ...p, dir }, i, sc, mode, ox);
+  };
+  CROWD.filter(p => p.far).forEach((p, i) => draw(p, i + 7, 1.5));
+  CROWD.filter(p => !p.far).forEach((p, i) => draw(p, i, 2));
 }
 
 function drawBoy() {
