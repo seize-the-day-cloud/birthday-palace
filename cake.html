@@ -378,6 +378,7 @@ let shoutT = -1;
 $('lclose').addEventListener('click', () => {
   letterEl.classList.add('hide');
   shoutT = 0;
+  setText('이제 디엠하쟈!!!', '');   // 편지를 읽고 닫으면 상단 문구 변경
   const r = cvs.getBoundingClientRect(), k = r.height / H;
   shoutEl.style.top = Math.max(56, (tableY - 64) * k - 118) + 'px';
   shoutEl.classList.remove('hide');
