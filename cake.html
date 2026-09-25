@@ -24,6 +24,16 @@
     text-shadow:2px 0 0 var(--ink),-2px 0 0 var(--ink),0 2px 0 var(--ink),0 -2px 0 var(--ink),2px 2px 0 var(--ink),-2px -2px 0 var(--ink),2px -2px 0 var(--ink),-2px 2px 0 var(--ink);
     transition:opacity .4s;
   }
+  #shout{
+    position:absolute;left:8px;right:8px;text-align:center;pointer-events:none;
+    font-size:24px;line-height:1.35;color:#fff6d6;letter-spacing:1px;
+    text-shadow:3px 0 0 #c8243e,-3px 0 0 #c8243e,0 3px 0 #c8243e,0 -3px 0 #c8243e,3px 3px 0 #c8243e,-3px -3px 0 #c8243e,3px -3px 0 #c8243e,-3px 3px 0 #c8243e,5px 6px 0 rgba(43,29,46,.6);
+    animation:shoutIn .5s steps(5) both, shoutShake .12s steps(2) .5s 12, shoutOut .6s ease 3.3s forwards;
+    transform-origin:50% 100%;
+  }
+  @keyframes shoutIn{0%{transform:scale(.2);opacity:0;}70%{transform:scale(1.18);opacity:1;}100%{transform:scale(1);}}
+  @keyframes shoutShake{0%{transform:translate(-2px,1px) rotate(-1.5deg);}100%{transform:translate(2px,-1px) rotate(1.5deg);}}
+  @keyframes shoutOut{to{opacity:0;transform:translateY(-10px);}}
   #sub{
     position:absolute;left:12px;right:12px;top:calc(env(safe-area-inset-top) + 46px);
     text-align:center;font-size:12px;color:#fff;pointer-events:none;
@@ -79,6 +89,7 @@
     <canvas id="game"></canvas>
     <div id="title"></div>
     <div id="sub"></div>
+    <div id="shout" class="hide">누나 다시 한번<br>생일 축하해!!</div>
     <div id="bottom">
       <div id="meterWrap" class="hide" style="display:flex;flex-direction:column;align-items:center;gap:4px">
         <div id="meter"><i></i><b></b></div>
@@ -343,7 +354,20 @@ openBtn.addEventListener('click', () => {
   chime([659, 880], 0.08, 0.04);
   openLetter();
 });
-$('lclose').addEventListener('click', () => { letterEl.classList.add('hide'); reopenBtn.classList.remove('hide'); });
+// 편지를 닫으면: 맞은편 캐릭터가 두 손을 모아 외침!
+const shoutEl = $('shout');
+let shoutT = -1;
+$('lclose').addEventListener('click', () => {
+  letterEl.classList.add('hide');
+  shoutT = 0;
+  const r = cvs.getBoundingClientRect(), k = r.height / H;
+  shoutEl.style.top = Math.max(60, (tableY - 64) * k - 70) + 'px';
+  shoutEl.classList.remove('hide');
+  shoutEl.style.animation = 'none'; void shoutEl.offsetWidth; shoutEl.style.animation = '';   // 다시 눌러도 처음부터
+  chime([523, 659, 784, 1047, 1319], 0.07, 0.04);
+  for (let i = 0; i < 24; i++) sparks.push({ x: CX + rnd(-30, 30), y: tableY - rnd(30, 70), vx: rnd(-40, 40), vy: rnd(-50, -10), life: rnd(0.5, 1.1), c: ['#fff6d6', '#ffd166', '#ff9ab8'][i % 3] });
+  setTimeout(() => { shoutEl.classList.add('hide'); reopenBtn.classList.remove('hide'); shoutT = -1; }, 4000);
+});
 reopenBtn.addEventListener('click', () => { reopenBtn.classList.add('hide'); openLetter(); });
 
 let typer = null;
@@ -365,6 +389,7 @@ function openLetter() {
 /* ================== 업데이트 ================== */
 function update(dt) {
   t += dt; pt += dt;
+  if (shoutT >= 0) shoutT += dt;
 
   // 등장: 어두운 복도를 걸어서 → 방 도착
   if (phase === 'corridor') {
@@ -1122,6 +1147,37 @@ function drawCrowd() {
   CROWD.filter(p => !p.far).forEach((p, i) => draw(p, i, 2));
 }
 
+function drawBoyShout(ox0, oy0, w, h) {
+  // 외치는 모션: 앞으로 살짝 튀어나오듯 + 부르르 떨림, 입 크게, 두 손을 입가에 모음
+  const shake = shoutT > 0.4 ? (Math.floor(t * 30) % 2 ? 1 : -1) : 0;
+  const lift = shoutT < 0.35 ? Math.round(shoutT / 0.35 * 3) : 3;
+  const ox = ox0 + shake, oy = oy0 - lift;
+  ctx.drawImage(boyCv, ox, oy, w, h);
+  const P = (c, r, cw, ch, col) => rect(ox + c * 2, oy + r * 2, cw * 2, ch * 2, col);
+  const SK = '#f3cfb3', OL = '#1e1624';
+  // 질끈 감은 눈 > <
+  P(8, 9, 2, 3, SK); P(15, 9, 2, 3, SK);
+  P(8, 9, 1, 1, OL); P(9, 10, 1, 1, OL); P(8, 11, 1, 1, OL);
+  P(16, 9, 1, 1, OL); P(15, 10, 1, 1, OL); P(16, 11, 1, 1, OL);
+  // 크게 벌린 입
+  P(10, 13, 5, 2, SK);
+  P(11, 13, 3, 3, OL); P(12, 14, 1, 1, '#c8243e'); P(11, 13, 3, 1, '#5a1a24');
+  // 입가에 모은 두 손 + 소매
+  [[4, 1], [17, -1]].forEach(([oc, d]) => {           // 얼굴 양옆에서 입 쪽으로 모은 손 (메가폰 손)
+    P(oc, 11, 4, 6, OL);
+    P(oc + 1, 12, 2, 4, '#f0c2a6');
+    P(d > 0 ? oc + 3 : oc, 12, 1, 4, '#e8b294');           // 입 쪽 손가락 끝
+    P(oc + 1, 13, 2, 1, '#dca088'); P(oc + 1, 15, 2, 1, '#dca088');   // 손가락 선
+    P(oc + 1, 17, 2, 3, '#25304c');                         // 소매
+  });
+  // 외침 효과선
+  const cx = ox + w / 2, cy = oy + 28, f = Math.floor(t * 8) % 2;
+  [[-1, -1], [-1, 0], [-1, 1], [1, -1], [1, 0], [1, 1]].forEach(([dx, dy]) => {
+    const x = Math.round(cx + dx * (30 + f * 3)), y = Math.round(cy + dy * 10);
+    rect(x, y, dx * 5, 1, '#fff6d6');
+  });
+}
+
 function drawBoy() {
   const sway = Math.sin(t * (phase === 'party' ? 2.4 : 1.5));   // 아주 살짝만 흔들림
   const w = Math.round(boyCv.width * BOY_SCALE), h = Math.round(boyCv.height * BOY_SCALE);
@@ -1129,6 +1185,7 @@ function drawBoy() {
   const oy = tableY - h + 2;
   ctx.imageSmoothingEnabled = false;
   const blinking = (t % 3.6) < 0.13;
+  if (shoutT >= 0 && shoutT < 3.9) { drawBoyShout(ox, oy, w, h); return; }
   ctx.drawImage(blinking ? boyBlink : boyCv, ox, oy, w, h);
   if (cheering()) {                              // 짝짝짝 박수
     const together = Math.floor(t / 0.16) % 2 === 0;
