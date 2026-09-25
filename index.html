@@ -12,15 +12,28 @@
 <meta name="apple-mobile-web-app-title" content="생일 궁전">
 <link rel="apple-touch-icon" href="icon-180.png">
 <title>Happy Birthday</title>
+<script>
+  // 아이폰 '홈 화면 앱'에서 화면 높이가 상태바만큼 짧게 잡혀 아래가 비는 문제 → 실제 화면 높이로 고정
+  (function () {
+    var sa = navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches);
+    function fit() {
+      var h = window.innerHeight;
+      if (sa && /iPhone|iPod/.test(navigator.userAgent)) h = Math.max(h, (window.innerWidth < window.innerHeight ? screen.height : screen.width));
+      document.documentElement.style.setProperty('--appH', h + 'px');
+    }
+    fit(); addEventListener('resize', fit); addEventListener('orientationchange', function () { setTimeout(fit, 300); });
+  })();
+</script>
+
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri/dist/galmuri.css">
 <style>
   :root{
     --panel:#f4e7d4; --panel-dark:#dcc6a6; --ink:#2b1d2e; --accent:#e8485f; --lcd:#2a1d33; --lcd-text:#ffe9b8;
   }
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-  html,body{height:100%;background:#140f2b;overflow:hidden;overscroll-behavior:none;}
+  html,body{height:var(--appH,100%);background:#140f2b;overflow:hidden;overscroll-behavior:none;}
   body{
-    position:fixed;inset:0;
+    position:fixed;top:0;left:0;right:0;height:var(--appH,100%);
     font-family:'Galmuri11','Galmuri9',monospace;
     color:var(--ink);
     user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
@@ -858,7 +871,7 @@ function openNextScene() {
   const f = document.createElement('iframe');
   f.src = CONFIG.nextPage + '?v=' + Date.now();   // 항상 최신 케이크 화면 (폰 캐시 방지)
   f.allow = 'microphone; autoplay; fullscreen';
-  f.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#0d0a14;';
+  f.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:var(--appH,100%);border:0;z-index:50;background:#0d0a14;';
   document.body.appendChild(f);
   walkman.style.display = 'none';
   paused = true;             // 입장 화면은 멈춤 (음악만 계속)
