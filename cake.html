@@ -20,6 +20,16 @@
   #screen{position:absolute;inset:0;overflow:hidden;}
   #game{display:block;width:100%;height:100%;image-rendering:crisp-edges;image-rendering:pixelated;}
 
+  #title.dm{                                     /* 편지 후: 커지면서 은은하게 반짝이는 문구 */
+    font-size:23px;top:calc(env(safe-area-inset-top) + 12px);
+    color:transparent;text-shadow:none;
+    background:linear-gradient(100deg,#fff6e0 0%,#fff6e0 42%,#ffd98a 48%,#ffffff 50%,#ffd98a 52%,#fff6e0 58%,#fff6e0 100%);
+    background-size:300% 100%;-webkit-background-clip:text;background-clip:text;
+    filter:drop-shadow(1px 0 0 #2b1d2e) drop-shadow(-1px 0 0 #2b1d2e) drop-shadow(0 1px 0 #2b1d2e) drop-shadow(0 -1px 0 #2b1d2e) drop-shadow(0 0 6px rgba(255,214,140,.55));
+    animation:dmGrow .6s cubic-bezier(.3,1.5,.5,1) both, dmShine 2.8s ease-in-out .6s infinite;
+  }
+  @keyframes dmGrow{from{transform:scale(.75);}to{transform:scale(1);}}
+  @keyframes dmShine{0%{background-position:100% 0;}60%,100%{background-position:0 0;}}
   #title{
     position:absolute;left:12px;right:12px;top:calc(env(safe-area-inset-top) + 16px);
     text-align:center;font-size:16px;color:#fff;letter-spacing:1px;pointer-events:none;
@@ -87,13 +97,11 @@
   #letter .paper{
     width:100%;max-width:480px;background:var(--paper);border:4px solid var(--ink);
     box-shadow:8px 8px 0 rgba(43,29,46,.35);padding:22px 20px 18px;position:relative;
-    background-image:repeating-linear-gradient(transparent 0 37px,#f3dfe6 37px 38px);
-    background-position:0 22px;
     animation:open .45s steps(6);
   }
   @keyframes open{from{transform:translateY(40px) scale(.7);opacity:0;}to{transform:none;opacity:1;}}
   #letter .stamp{position:absolute;right:14px;top:-18px;background:var(--pink);border:3px solid var(--ink);padding:4px 8px;font-size:12px;}
-  #ltext{white-space:pre-wrap;word-break:keep-all;font-family:'NanumGaRamYeonGgoc','Galmuri11',sans-serif;font-size:27px;line-height:38px;min-height:52vh;max-height:68vh;overflow-y:auto;color:#3a2a34;}
+  #ltext{background-image:repeating-linear-gradient(transparent 0 33px,#efd5de 33px 34px,transparent 34px 38px);background-attachment:local;white-space:pre-wrap;word-break:keep-all;font-family:'NanumGaRamYeonGgoc','Galmuri11',sans-serif;font-size:27px;line-height:38px;min-height:52vh;max-height:68vh;overflow-y:auto;color:#3a2a34;}
   #ltext .caret{display:inline-block;width:3px;height:24px;background:var(--ink);vertical-align:-2px;animation:blink 1s steps(2) infinite;}
   @keyframes blink{50%{opacity:0;}}
   #letter .row{display:flex;gap:8px;margin-top:12px;}
@@ -121,7 +129,6 @@
 </div>
 <div id="letter" class="hide">
   <div class="paper">
-    <div class="stamp">♥ 09.23</div>
     <div id="ltext"></div>
     <div class="row">
       <button class="pbtn" id="again">🎂 한 번 더</button>
@@ -243,6 +250,7 @@ function layout() {
 /* ================== 텍스트 ================== */
 function setText(title, sub = '') { titleEl.textContent = title; subEl.textContent = sub; }
 function setPhase(p) {
+  titleEl.classList.remove('dm');
   phase = p; pt = 0;
   lightBtn.classList.toggle('hide', p !== 'ready');
   meterWrap.classList.toggle('hide', !(p === 'blow' && micOn));
@@ -424,7 +432,7 @@ $('lclose').addEventListener('click', () => {
   shoutEl.style.animation = 'none'; void shoutEl.offsetWidth; shoutEl.style.animation = '';   // 다시 눌러도 처음부터
   chime([523, 659, 784, 1047, 1319], 0.07, 0.04);
   for (let i = 0; i < 24; i++) sparks.push({ x: CX + rnd(-30, 30), y: tableY - rnd(30, 70), vx: rnd(-40, 40), vy: rnd(-50, -10), life: rnd(0.5, 1.1), c: ['#fff6d6', '#ffd166', '#ff9ab8'][i % 3] });
-  setTimeout(() => { shoutEl.classList.add('hide'); reopenBtn.classList.remove('hide'); shoutT = -1; }, 4000);
+  setTimeout(() => { shoutEl.classList.add('hide'); reopenBtn.classList.remove('hide'); shoutT = -1; titleEl.classList.add('dm'); }, 3900);
 });
 reopenBtn.addEventListener('click', () => { reopenBtn.classList.add('hide'); openLetter(); });
 
@@ -439,7 +447,7 @@ function openLetter() {
     i++;
     ltext.textContent = full.slice(0, i);
     const c = document.createElement('span'); c.className = 'caret'; ltext.appendChild(c);
-    ltext.scrollTop = ltext.scrollHeight;
+    if (ltext.scrollHeight - ltext.scrollTop - ltext.clientHeight < 70) ltext.scrollTop = ltext.scrollHeight;   // 맨 아래 보고 있을 때만 따라감
     if (i >= full.length) clearInterval(typer);
   }, CONFIG.typingSpeed);
   ltext.onclick = () => { if (i < full.length) { i = full.length - 1; } };   // 터치하면 전체 표시
