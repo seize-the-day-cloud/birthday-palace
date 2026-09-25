@@ -87,6 +87,8 @@
   .pbtn:active{transform:translateY(4px);box-shadow:0 1px 0 var(--ink);}
   .pbtn.pink{background:var(--pink);}
   .hide{display:none !important;}
+  .btnrow{display:flex;gap:10px;pointer-events:none;}
+  .btnrow .pbtn{font-size:14px;padding:11px 14px;}
 
   #meter{
     width:150px;height:14px;background:rgba(255,255,255,.7);border:3px solid var(--ink);position:relative;
@@ -136,7 +138,7 @@
       </div>
       <button id="lightBtn" class="pbtn pink hide">🕯️ 촛불 켜기</button>
       <button id="openLetterBtn" class="pbtn pink hide">💌 편지 열어보기</button>
-      <button id="reopen" class="pbtn hide">💌 편지 다시 보기</button>
+      <div class="btnrow"><button id="petBtn" class="pbtn pink hide">🤚 쓰다듬어 주기,,</button><button id="reopen" class="pbtn hide">💌 편지 다시 보기</button></div>
     </div>
   </div>
 </div>
@@ -419,7 +421,7 @@ lightBtn.addEventListener('click', async () => {
   startMic();                 // 촛불 켜는 동안 마이크 권한 요청
 });
 $('again').addEventListener('click', () => {
-  letterEl.classList.add('hide'); reopenBtn.classList.add('hide');
+  letterEl.classList.add('hide'); reopenBtn.classList.add('hide'); petBtn.classList.add('hide');
   clearInterval(typer);
   candles.forEach(c => { c.lit = false; c.hp = 1; });
   fireworks = []; confetti = [];
@@ -445,9 +447,18 @@ $('lclose').addEventListener('click', () => {
   shoutEl.style.animation = 'none'; void shoutEl.offsetWidth; shoutEl.style.animation = '';   // 다시 눌러도 처음부터
   chime([523, 659, 784, 1047, 1319], 0.07, 0.04);
   for (let i = 0; i < 24; i++) sparks.push({ x: CX + rnd(-30, 30), y: tableY - rnd(30, 70), vx: rnd(-40, 40), vy: rnd(-50, -10), life: rnd(0.5, 1.1), c: ['#fff6d6', '#ffd166', '#ff9ab8'][i % 3] });
-  setTimeout(() => { shoutEl.classList.add('hide'); reopenBtn.classList.remove('hide'); shoutT = -1; titleEl.classList.add('dm'); }, 3900);
+  setTimeout(() => { shoutEl.classList.add('hide'); reopenBtn.classList.remove('hide'); petBtn.classList.remove('hide'); shoutT = -1; titleEl.classList.add('dm'); }, 3900);
 });
-reopenBtn.addEventListener('click', () => { reopenBtn.classList.add('hide'); openLetter(); });
+reopenBtn.addEventListener('click', () => { reopenBtn.classList.add('hide'); petBtn.classList.add('hide'); openLetter(); });
+
+// 🤚 쓰다듬어 주기: 누나 손이 머리를 쓰담쓰담 → 남자 캐릭터 행복
+const petBtn = $('petBtn');
+let petT = -1, hearts = [];
+const PET_TIME = 2.6;
+petBtn.addEventListener('click', () => {
+  petT = 0;
+  chime([784, 988, 1175], 0.12, 0.035);
+});
 
 let typer = null;
 function openLetter() {
@@ -470,6 +481,13 @@ function openLetter() {
 function update(dt) {
   t += dt; pt += dt;
   if (shoutT >= 0) shoutT += dt;
+  if (petT >= 0) {
+    petT += dt;
+    if (Math.random() < dt * 7) hearts.push({ x: CX + rnd(-18, 18), y: tableY - 50 - rnd(0, 8), vy: -rnd(14, 22), life: rnd(1, 1.6), ph: rnd(0, 6) });
+    if (petT > PET_TIME) petT = -1;
+  }
+  hearts.forEach(h => { h.y += h.vy * dt; h.x += Math.sin(t * 4 + h.ph) * 8 * dt; h.life -= dt; });
+  hearts = hearts.filter(h => h.life > 0);
 
   // 등장: 어두운 복도를 걸어서 → 방 도착
   if (phase === 'corridor') {
@@ -1227,6 +1245,28 @@ function drawCrowd() {
   CROWD.filter(p => !p.far).forEach((p, i) => draw(p, i, 2));
 }
 
+function drawBoyPetted(ox0, oy0, w, h) {
+  const bounce = Math.round(Math.abs(Math.sin(petT * 7)) * 2);          // 좋아서 들썩
+  const ox = ox0, oy = oy0 - bounce;
+  ctx.drawImage(boyCv, ox, oy, w, h);
+  const P = (c, r, cw, ch, col) => rect(ox + c * 2, oy + r * 2, cw * 2, ch * 2, col);
+  const SK = '#f3cfb3', OL = '#1e1624';
+  // 행복한 눈 ^ ^
+  P(7, 9, 4, 3, SK); P(14, 9, 4, 3, SK);
+  [[7, 11], [8, 10], [9, 10], [10, 11], [14, 11], [15, 10], [16, 10], [17, 11]].forEach(([c, r]) => P(c, r, 1, 1, OL));
+  // 발그레한 볼
+  P(5, 12, 3, 1, '#f59aa0'); P(17, 12, 3, 1, '#f59aa0'); P(6, 11, 1, 1, '#f7b4bc'); P(18, 11, 1, 1, '#f7b4bc');
+  // 활짝 웃는 입
+  P(10, 13, 5, 2, SK); P(10, 13, 5, 1, OL); P(11, 14, 3, 1, OL); P(12, 14, 1, 1, '#e8627a');
+  // 누나 손 (소매 달린 손이 머리 위를 쓰담쓰담)
+  const hw = Math.round(handCv.width * 1.6), hh = Math.round(handCv.height * 1.6);
+  const rub = Math.round(Math.sin(petT * 9) * 7);
+  const reach = Math.min(1, petT / 0.35);                                  // 처음엔 손이 쓱 들어옴
+  const hx = ox + w / 2 - hw + 10 + rub - Math.round((1 - reach) * 40);
+  const hy = oy - 13 + Math.round((1 - reach) * -20);
+  ctx.drawImage(handCv, Math.round(hx), Math.round(hy), hw, hh);
+}
+
 function drawBoyShout(ox0, oy0, w, h) {
   // 외치는 모션: 앞으로 살짝 튀어나오듯 + 부르르 떨림, 입 크게, 두 손을 입가에 모음
   const shake = (shoutT > 0.35 && shoutT < 0.95) ? (Math.floor(t * 24) % 2 ? 1 : -1) : 0;   // 잠깐만 부르르
@@ -1266,6 +1306,7 @@ function drawBoy() {
   ctx.imageSmoothingEnabled = false;
   const blinking = (t % 3.6) < 0.13;
   if (shoutT >= 0 && shoutT < 3.9) { drawBoyShout(ox, oy, w, h); return; }
+  if (petT >= 0) { drawBoyPetted(ox, oy, w, h); return; }
   ctx.drawImage(blinking ? boyBlink : boyCv, ox, oy, w, h);
   if (cheering()) {                              // 짝짝짝 박수
     const together = Math.floor(t / 0.16) % 2 === 0;
@@ -1329,6 +1370,13 @@ function render() {
     drawFlames(0);
     drawDove();
   }
+  hearts.forEach(h => {                                                   // 하트 뿅뿅
+    ctx.globalAlpha = clamp(h.life, 0, 1);
+    const x = Math.round(h.x), y = Math.round(h.y);
+    rect(x, y, 2, 1, '#ff5c8a'); rect(x + 3, y, 2, 1, '#ff5c8a'); rect(x - 1, y + 1, 7, 1, '#ff5c8a');
+    rect(x, y + 2, 5, 1, '#ff5c8a'); rect(x + 1, y + 3, 3, 1, '#ff5c8a'); rect(x + 2, y + 4, 1, 1, '#ff5c8a'); rect(x, y + 1, 1, 1, '#ffb3c7');
+  });
+  ctx.globalAlpha = 1;
   smoke.forEach(s => { ctx.globalAlpha = clamp(s.life / 1.5, 0, 1) * 0.6; rect(Math.round(s.x), Math.round(s.y), 2, 2, '#9c94a8'); });
   ctx.globalAlpha = 1;
   sparks.forEach(s => { ctx.globalAlpha = clamp(s.life, 0, 1); rect(Math.round(s.x), Math.round(s.y), 1, 1, s.c); });
