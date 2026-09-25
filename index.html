@@ -791,7 +791,7 @@ let paused = false;
 function openNextScene() {
   if (!CONFIG.nextPage) return;
   const f = document.createElement('iframe');
-  f.src = CONFIG.nextPage;
+  f.src = CONFIG.nextPage + '?v=' + Date.now();   // 항상 최신 케이크 화면 (폰 캐시 방지)
   f.allow = 'microphone; autoplay; fullscreen';
   f.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#0d0a14;';
   document.body.appendChild(f);

@@ -650,6 +650,59 @@ function drawCorridor() {
   });
 }
 
+/* ================== 액자 그림 ================== */
+const FONT3 = {   // 3x5 도트 글자
+  S: ['111', '100', '111', '001', '111'], E: ['111', '100', '111', '100', '111'], P: ['111', '101', '111', '100', '100'],
+  '2': ['111', '001', '111', '100', '111'], '3': ['111', '001', '111', '001', '111'], '9': ['111', '101', '111', '001', '111'],
+};
+function text3(str, x, y, c, s = 1) {
+  [...str].forEach((ch, i) => (FONT3[ch] || []).forEach((row, r) => [...row].forEach((b, k) => { if (b === '1') rect(x + i * 4 * s + k * s, y + r * s, s, s, c); })));
+}
+function frame(x, y, w, h) {
+  rect(x - 1, y - 1, w + 2, h + 2, '#2a1a1c'); rect(x, y, w, h, '#b8892e');
+  rect(x + 1, y + 1, w - 2, 1, '#e8c060'); rect(x + 1, y + h - 2, w - 2, 1, '#8a6420');
+}
+function drawCalendarFrame(x, y) {
+  frame(x, y, 26, 32);
+  const px = x + 2, py = y + 2, W2 = 22, H2 = 28;
+  rect(px, py, W2, H2, '#fffaf2');
+  rect(px, py, W2, 7, '#c8243e'); text3('SEP', px + 5, py + 1, '#ffffff');               // 9월
+  rect(px + 4, py - 1, 1, 3, '#6a6a7a'); rect(px + 17, py - 1, 1, 3, '#6a6a7a');         // 링
+  // 날짜 칸 (작은 점)
+  for (let r = 0; r < 5; r++) for (let c = 0; c < 7; c++) rect(px + 1 + c * 3, py + 9 + r * 2, 2, 1, (c === 0 ? '#e88a9a' : '#b8b0c0'));
+  // 크게 '23' + 빨간 동그라미
+  text3('23', px + 6, py + 19, '#2b1d2e');
+  const cx = px + 11, cy = py + 21;
+  for (let a = 0; a < 40; a++) { const th = a / 40 * Math.PI * 2; rect(Math.round(cx + Math.cos(th) * 7.5), Math.round(cy + Math.sin(th) * 4.5), 1, 1, '#e8243e'); }
+  rect(cx + 6, cy - 6, 2, 1, '#e8243e');                                                   // 손으로 그린 끝
+  rect(px + 1 + 3 * 3, py + 9 + 3 * 2, 2, 1, '#e8243e');                                   // 달력 칸의 23일도 빨갛게
+}
+const CAT = [
+  '...K.........K...',
+  '..KOK.......KOK..',
+  '..KOOK.....KOOK..',
+  '..KOpOKKKKKOpOK..',
+  '..KOOOOOOOOOOOK..',
+  '.KOOOOOOOOOOOOOK.',
+  '.KOOKKOOOOOKKOOK.',
+  '.KOOKWOOOOOKWOOK.',
+  '.KOOOOOOOOOOOOOK.',
+  '.KpOOOOOKOOOOOpK.',
+  '..KOOOOKWKOOOOK..',
+  '..KOOOOOOOOOOOK..',
+  '...KKOOOOOOOKK...',
+  '.....KKKKKKK.....',
+];
+function drawCatFrame(x, y) {
+  frame(x, y, 26, 32);
+  const px = x + 2, py = y + 2;
+  rect(px, py, 22, 28, '#3f8f8a'); rect(px, py + 18, 22, 10, '#e8b8c8');                 // 배경 + 쿠션
+  for (let k = 0; k < 5; k++) rect(px + 2 + k * 4, py + 3 + (k % 2) * 3, 1, 1, '#9fe0d8');  // 반짝이
+  const pal = { K: '#2b1d2e', O: '#f0923a', p: '#ffb3c7', W: '#ffffff' };
+  CAT.forEach((row, r) => [...row].forEach((ch, c) => { if (ch !== '.') rect(px + 2 + c, py + 7 + r, 1, 1, pal[ch]); }));
+  rect(px + 7, py + 12, 1, 1, '#f0923a'); rect(px + 13, py + 12, 1, 1, '#f0923a');         // 줄무늬 느낌
+}
+
 /* ================== 방 (어두운 궁전 식당) ================== */
 function drawRoom() {
   // 벽: 짙은 자두색 + 다마스크 무늬
@@ -698,10 +751,8 @@ function drawRoom() {
     [-5, 0, 5].forEach(dx => { rect(x + dx, y, 1, 6, '#efe6d6'); rect(x + dx, y - 1, 1, 1, K); });
   });
   // 액자
-  [[4, 30], [118, 30]].forEach(([x, y]) => {
-    rect(x, y, 22, 26, '#b8892e'); rect(x + 2, y + 2, 18, 22, '#2e2238');
-    rect(x + 6, y + 8, 10, 12, '#3e3050'); circle(x + 11, y + 11, 3, '#5a4a6a');
-  });
+  drawCalendarFrame(3, 26);
+  drawCatFrame(115, 26);
 
   // 바닥 (어두운 나무 마루, 원근)
   for (let y = floorY; y < tableY; y++) {
@@ -976,16 +1027,14 @@ const cheering = () => phase === 'party' && dove.on && dove.t > 0.25 && dove.t <
 let crowdWas = false;
 const CROWD = [
   // x, 발 위치(테이블 기준), 종류, 머리색, 옷색
-  { x: 12,  dy: 3,  kind: 'butler', hair: '#2b2230' },
-  { x: 29,  dy: 1,  kind: 'maid',   hair: '#6a3e2a' },
-  { x: 46,  dy: 3,  kind: 'guest',  hair: '#e0b04a', top: '#3fa5a0' },
-  { x: 98,  dy: 3,  kind: 'guest',  hair: '#3a2a2a', top: '#c86aa8' },
-  { x: 115, dy: 1,  kind: 'maid',   hair: '#2b2230' },
-  { x: 132, dy: 3,  kind: 'butler', hair: '#8a5a3a' },
-  { x: 21,  dy: -9, kind: 'guest',  hair: '#5a3a2a', top: '#d8a23a', far: true },
-  { x: 38,  dy: -10, kind: 'butler', hair: '#2b2230', far: true },
-  { x: 106, dy: -10, kind: 'guest', hair: '#c9c2d4', top: '#6a7ad8', far: true },
-  { x: 123, dy: -9, kind: 'maid',   hair: '#e0b04a', far: true },
+  { x: 14,  dy: 6,  kind: 'butler', hair: '#2b2230' },
+  { x: 38,  dy: 4,  kind: 'maid',   hair: '#6a3e2a' },
+  { x: 106, dy: 4,  kind: 'guest',  hair: '#3a2a2a', top: '#c86aa8' },
+  { x: 130, dy: 6,  kind: 'maid',   hair: '#2b2230' },
+  { x: 26,  dy: -12, kind: 'guest', hair: '#e0b04a', top: '#3fa5a0', far: true },
+  { x: 50,  dy: -14, kind: 'butler', hair: '#8a5a3a', far: true },
+  { x: 94,  dy: -14, kind: 'guest', hair: '#c9c2d4', top: '#6a7ad8', far: true },
+  { x: 118, dy: -12, kind: 'guest', hair: '#5a3a2a', top: '#d8a23a', far: true },
 ];
 function drawPerson(p, i) {
   const x = p.x, fy = tableY + p.dy;
@@ -1014,12 +1063,25 @@ function drawPerson(p, i) {
 function poof(xs) {
   xs.forEach(p => { for (let k = 0; k < 7; k++) sparks.push({ x: p.x + rnd(-6, 6), y: tableY + p.dy - rnd(4, 24), vx: rnd(-20, 20), vy: rnd(-25, 5), life: rnd(0.4, 0.8), c: ['#ffffff', '#f5d38a', '#ffb3c7'][k % 3] }); });
 }
+const personCv = document.createElement('canvas'); personCv.width = 20; personCv.height = 32;
+const personCtx = personCv.getContext('2d');
+function drawPersonBig(p, i, scale) {
+  // 작은 캔버스에 그린 뒤 확대 (도트 유지)
+  const main = ctx; ctx = personCtx;
+  ctx.clearRect(0, 0, 20, 32);
+  const saveTable = tableY; tableY = 0;
+  drawPerson({ ...p, x: 10, dy: 31 }, i);
+  tableY = saveTable; ctx = main;
+  const w = Math.round(20 * scale), h = Math.round(32 * scale);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(personCv, Math.round(p.x - w / 2), Math.round(tableY + p.dy - h + 2), w, h);
+}
 function drawCrowd() {
   const on = cheering();
   if (on !== crowdWas) { poof(CROWD); crowdWas = on; }                  // 나타날 때/사라질 때 펑!
   if (!on) return;
-  CROWD.filter(p => p.far).forEach((p, i) => drawPerson(p, i + 7));
-  CROWD.filter(p => !p.far).forEach((p, i) => drawPerson(p, i));
+  CROWD.filter(p => p.far).forEach((p, i) => drawPersonBig(p, i + 7, 1.5));
+  CROWD.filter(p => !p.far).forEach((p, i) => drawPersonBig(p, i, 2));
 }
 
 function drawBoy() {
