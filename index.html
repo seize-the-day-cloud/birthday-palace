@@ -397,6 +397,7 @@ function update(dt) {
 
   updateBunny(dt);
   updateCassette(dt);
+  if (state === 'play') playT += dt;
 
   petals.forEach(p => {
     p.y += p.vy * dt; p.x += Math.sin(t * 1.4 + p.ph) * 6 * dt;
@@ -829,6 +830,25 @@ function render() {
   list.sort((a, b) => a.y - b.y).forEach(o => o.draw());
 
   petals.forEach(p => rect(Math.round(p.x), Math.round(p.y), (p.ph > 3 ? 2 : 1), 1, p.c));
+  drawHintArrow();
+}
+
+// 처음에만 잠깐: 반투명 화살표가 카세트를 가리킴 (카세트에 가거나 곡을 고르면 사라짐)
+let playT = 0, hintDone = false;
+const ARROW = ['..XXX..', '..XXX..', '..XXX..', 'XXXXXXX', '.XXXXX.', '..XXX..', '...X...'];
+function drawHintArrow() {
+  if (state !== 'play' || hintDone) return;
+  if (cassette.near || current >= 0 || playT > 8) { hintDone = true; return; }
+  const fadeIn = clamp(playT / 0.6, 0, 1), fadeOut = clamp((8 - playT) / 1, 0, 1);
+  const a = 0.7 * fadeIn * fadeOut * (0.75 + 0.25 * Math.sin(t * 5));
+  const bob = Math.round(Math.abs(Math.sin(t * 4)) * -3);
+  const S2 = 2, x0 = Math.round(cassette.x) - 7, y0 = Math.round(cassette.y) - 40 + bob;
+  const px = (c, r, col) => rect(x0 + c * S2, y0 + r * S2, S2, S2, col);
+  ctx.globalAlpha = a;
+  ARROW.forEach((row, r) => { for (let c = 0; c < 7; c++) if (row[c] === 'X')          // 테두리
+    [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => rect(x0 + c * S2 + dx, y0 + r * S2 + dy, S2, S2, '#2b1d2e')); });
+  ARROW.forEach((row, r) => { for (let c = 0; c < 7; c++) if (row[c] === 'X') px(c, r, r < 3 ? '#ffe9f0' : '#ff9ab8'); });
+  ctx.globalAlpha = 1;
 }
 
 /* ================== 다음 화면 (배경음악이 끊기지 않게 같은 페이지 안에서 열기) ================== */
